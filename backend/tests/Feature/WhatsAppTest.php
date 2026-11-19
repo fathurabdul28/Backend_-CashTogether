@@ -103,7 +103,7 @@ it('transaksi masuk ke akun pemilik nomor, bukan pasangannya', function () {
     $andi->forceFill(['phone' => '6281111'])->save();
     $rina->forceFill(['phone' => '6282222'])->save();
     wa('6282222', 'gaji 10 juta');
-    expect(Transaction::where('created_by', $rina->id)->sum('amount'))->toBe(10_000_000)
+    expect((int) Transaction::where('created_by', $rina->id)->sum('amount'))->toBe(10_000_000)
         ->and(Transaction::where('created_by', $andi->id)->count())->toBe(0);
     expect(lastReply())->toContain('Pemasukan')->toContain('Gaji');
 });
