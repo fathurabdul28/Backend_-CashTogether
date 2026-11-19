@@ -153,3 +153,81 @@ it('GET ke URL webhook menjawab ok tanpa memproses apa pun, dan rahasia salah di
     $this->getJson('/api/whatsapp/fonnte/salah')->assertNotFound();
     expect(Transaction::count())->toBe(0);
 });
+
+// ---- Beberapa barang dalam satu pesan ----
+$F = 'Makan & Minum';
+dataset('banyak', [
+    'dua barang pakai "dan"' => ['saya makan ayam geprek 25 ribu dan minum kopi 80 ribu', [['expense', 25_000, $F], ['expense', 80_000, $F]]],
+    'koma, tiga barang' => ['makan 50 ribu, kopi 80 ribu, bensin 20rb', [['expense', 50_000, $F], ['expense', 80_000, $F], ['expense', 20_000, 'Transportasi']]],
+    'dua pemasukan' => ['gaji 10 juta dan bonus 2 juta', [['income', 10_000_000, 'Gaji'], ['income', 2_000_000, 'Bonus']]],
+    'pemasukan + pengeluaran' => ['gaji 10 juta, beli bensin 50rb', [['income', 10_000_000, 'Gaji'], ['expense', 50_000, 'Transportasi']]],
+    'kata jenis berlaku untuk semua' => ['pengeluaran: makan 25rb, kopi 15rb', [['expense', 25_000, $F], ['expense', 15_000, $F]]],
+    'pemasukan tanpa kategori' => ['pemasukan 1 juta dan 500 ribu', [['income', 1_000_000, 'Lainnya'], ['income', 500_000, 'Lainnya']]],
+    'tanpa pemisah' => ['makan 25rb kopi 80rb', [['expense', 25_000, $F], ['expense', 80_000, $F]]],
+    'plus tanpa spasi' => ['makan 25rb+kopi 15rb', [['expense', 25_000, $F], ['expense', 15_000, $F]]],
+    'ampersand' => ['kopi 15rb & roti 10rb', [['expense', 15_000, $F], ['expense', 10_000, $F]]],
+    'koma desimal tidak memecah' => ['bayar kontrakan 1,5 juta dan listrik 450.000', [['expense', 1_500_000, 'Rumah'], ['expense', 450_000, 'Tagihan & Listrik']]],
+    'titik ribuan' => ['makan 50.000, kopi 25.000', [['expense', 50_000, $F], ['expense', 25_000, $F]]],
+    'angka polos' => ['bensin 50000 dan kopi 20000', [['expense', 50_000, 'Transportasi'], ['expense', 20_000, $F]]],
+    'satu barang: "2 kopi" bukan nominal' => ['beli 2 kopi 25rb', [['expense', 25_000, $F]]],
+    'satu barang: tahun bukan nominal' => ['makan 25rb 17 november 2026', [['expense', 25_000, $F]]],
+    'satu barang biasa' => ['pengeluaran 34 ribu untuk makan', [['expense', 34_000, $F]]],
+    'tanpa nominal' => ['halo apa kabar', []],
+]);
+
+it('membaca beberapa barang dalam satu pesan', function (string $text, array $expected) {
+    $items = (new MessageParser)->parseMany($text, Carbon::parse('2026-11-19 10:00', 'Asia/Jakarta'));
+    expect(array_map(fn ($i) => [$i['type'], $i['amount'], $i['category']], $items))->toBe($expected);
+})->with('banyak');
+
+it('catatan tiap barang bersih, dan tanggal berlaku untuk semua barang', function () {
+    $now = Carbon::parse('2026-11-19 10:00', 'Asia/Jakarta');
+    $i = (new MessageParser)->parseMany('saya makan ayam geprek 25 ribu dan minum kopi 80 ribu', $now);
+    expect(array_column($i, 'note'))->toBe(['makan ayam geprek', 'minum kopi']);
+    $y = (new MessageParser)->parseMany('kemarin makan 20rb dan kopi 15rb', $now);
+    expect($y)->toHaveCount(2)->and($y[0]['date']->toDateString())->toBe('2026-11-18')->and($y[1]['date']->toDateString())->toBe('2026-11-18');
+});
+
+it('bot mencatat semua barang dari satu pesan, membalas daftar, dan BATAL membatalkan semuanya', function () {
+    [$andi] = linkedPair();
+    $andi->forceFill(['phone' => '6281111'])->save();
+
+    wa('6281111', 'saya makan ayam geprek 25 ribu dan minum kopi 80 ribu')->assertOk();
+    expect(Transaction::count())->toBe(2)->and((int) Transaction::sum('amount'))->toBe(105_000);
+    expect(Transaction::pluck('created_at')->unique())->toHaveCount(1); // satu pesan = satu stempel waktu
+    expect(lastReply())->toContain('Dicatat 2 transaksi')->toContain('1. Pengeluaran Rp25.000 · Makan & Minum (makan ayam geprek)')
+        ->toContain('2. Pengeluaran Rp80.000 · Makan & Minum (minum kopi)')->toContain('Saldo kamu -Rp105.000')->toContain('BATAL');
+
+    wa('6281111', 'batal')->assertOk();
+    expect(Transaction::count())->toBe(0);
+    expect(lastReply())->toContain('Dibatalkan 2 transaksi')->toContain('Saldo kamu Rp0');
+});
+
+it('BATAL hanya membatalkan pesan terakhir, pesan sebelumnya tetap', function () {
+    [$andi] = linkedPair();
+    $andi->forceFill(['phone' => '6281111'])->save();
+    wa('6281111', 'gaji 5 juta');
+    Carbon::setTestNow(now()->addSeconds(5));
+    wa('6281111', 'bensin 50rb dan kopi 20rb');
+    expect(Transaction::count())->toBe(3);
+    wa('6281111', 'batal');
+    expect(Transaction::count())->toBe(1)->and(Transaction::first()->type)->toBe('income');
+    wa('6281111', 'saldo');
+    expect(lastReply())->toContain('Rp5.000.000');
+    Carbon::setTestNow();
+});
+
+it('pemasukan dan pengeluaran bisa dalam satu pesan', function () {
+    [$andi] = linkedPair();
+    $andi->forceFill(['phone' => '6281111'])->save();
+    wa('6281111', 'gaji 10 juta dan beli bensin 50rb');
+    expect(lastReply())->toContain('Pemasukan Rp10.000.000 · Gaji')->toContain('Pengeluaran Rp50.000 · Transportasi')->toContain('Saldo kamu Rp9.950.000');
+});
+
+it('menolak pesan dengan lebih dari 10 barang dan tidak mencatat apa pun', function () {
+    [$andi] = linkedPair();
+    $andi->forceFill(['phone' => '6281111'])->save();
+    wa('6281111', implode(', ', array_fill(0, 11, 'kopi 15rb')));
+    expect(lastReply())->toContain('Maksimal 10 transaksi');
+    expect(Transaction::count())->toBe(0);
+});

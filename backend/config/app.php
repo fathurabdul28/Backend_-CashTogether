@@ -67,6 +67,9 @@ return [
 
     'timezone' => 'UTC',
 
+    // Zona waktu untuk batas periode & kata "hari ini" (data tetap disimpan dalam UTC)
+    'display_timezone' => env('APP_DISPLAY_TZ', env('WA_TIMEZONE', 'Asia/Jakarta')),
+
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration

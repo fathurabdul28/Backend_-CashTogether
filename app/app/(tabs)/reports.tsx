@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import Svg, { Circle, Line, Rect } from 'react-native-svg';
-import { Lightbulb } from 'phosphor-react-native';
+import { DownloadSimple, Lightbulb } from 'phosphor-react-native';
+import { Button } from '@/components/Button';
+import { exportExcel } from '@/features/export';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { MonthSwitcher } from '@/components/Controls';
 import { ErrorState, Skeleton } from '@/components/Feedback';
 import { useReport } from '@/features/queries';
-import { monthKey } from '@/lib/date';
+import { usePeriod } from '@/features/period';
 import { formatIDR, formatIDRCompact } from '@/lib/format';
 import { radius, useTheme } from '@/theme';
 
@@ -23,8 +25,8 @@ const Card = ({ title, sub, children }: { title: string; sub?: string; children:
 
 export default function Reports() {
   const t = useTheme();
-  const [month, setMonth] = useState(new Date());
-  const q = useReport(monthKey(month));
+  const { key: mk, word } = usePeriod();
+  const q = useReport(mk);
   const r = q.data;
   const W = 280, H = 140;
   const max = Math.max(1, ...(r?.weeks ?? []).flatMap((w) => [w.income, w.expense]));
@@ -39,7 +41,7 @@ export default function Reports() {
   return (
     <Screen scroll bottomInset={40} onRefresh={() => q.refetch()}>
       <View style={{ minHeight: 56, justifyContent: 'center' }}><Text variant="displayM" accessibilityRole="header">Laporan</Text></View>
-      <View style={{ marginBottom: 12 }}><MonthSwitcher value={month} onChange={setMonth} /></View>
+      <View style={{ marginBottom: 12 }}><MonthSwitcher /></View>
       {q.isLoading ? <View style={{ gap: 16 }}><Skeleton h={200} r={16} /><Skeleton h={200} r={16} /></View> : q.isError || !r ? <ErrorState onRetry={() => q.refetch()} /> : (
         <>
           <Card title="Arus kas" sub="Per minggu">
@@ -64,7 +66,7 @@ export default function Reports() {
           </Card>
 
           <Card title="Ke mana uangnya pergi">
-            {totalExp === 0 ? <Text color="inkMuted">Belum ada pengeluaran bulan ini.</Text> : (
+            {totalExp === 0 ? <Text color="inkMuted">Belum ada pengeluaran {word}.</Text> : (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <View style={{ width: 150, height: 150, alignItems: 'center', justifyContent: 'center' }}>
                   <Svg width={150} height={150} viewBox="0 0 160 160" style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
@@ -99,6 +101,10 @@ export default function Reports() {
           <Text variant="bodySm" color="inkFaint" style={{ marginTop: 8 }}>Total pengeluaran {formatIDR(totalExp)}</Text>
         </>
       )}
+      <View style={{ marginTop: 16, gap: 8 }}>
+        <Button variant="secondary" label="Ekspor ke Excel / Google Sheets" icon={<DownloadSimple size={20} color={t.ink} />} onPress={() => exportExcel({ month: mk })} />
+        <Text variant="bodySm" color="inkMuted" style={{ textAlign: 'center' }}>File .xlsx berisi transaksi periode ini, ringkasan, dan tabungan. Bisa dibuka di Excel dan Google Sheets.</Text>
+      </View>
     </Screen>
   );
 }

@@ -45,6 +45,7 @@ class AuthController extends Controller
             'name' => 'sometimes|string|max:60',
             'gender' => 'sometimes|in:male,female',
             'identity_override' => 'sometimes|nullable|in:male,female',
+            'cycle_start_day' => 'sometimes|integer|between:1,28',
         ]);
         $r->user()->update($d);
         return $this->payload($r->user()->fresh());
@@ -55,6 +56,7 @@ class AuthController extends Controller
         return [
             'id' => $u->id, 'name' => $u->name, 'email' => $u->email, 'gender' => $u->gender,
             'identity_override' => $u->identity_override, 'household_id' => $u->householdId(),
+            'cycle_start_day' => (int) $u->cycle_start_day,
         ];
     }
 }

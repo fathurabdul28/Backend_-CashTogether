@@ -8,8 +8,8 @@ import { Text } from './Text';
 export type Field = { key: string; label: string; numeric?: boolean; optional?: boolean; placeholder?: string };
 
 /** Sheet form sederhana: kolom teks / nominal. Nilai numeric dikembalikan sebagai integer. */
-export function FormSheet({ visible, title, fields, initial = {}, submitLabel = 'Simpan', onClose, onSubmit, error }: {
-  visible: boolean; title: string; fields: Field[]; initial?: Record<string, string>; submitLabel?: string;
+export function FormSheet({ visible, title, hint, fields, initial = {}, submitLabel = 'Simpan', onClose, onSubmit, error }: {
+  visible: boolean; title: string; hint?: string; fields: Field[]; initial?: Record<string, string>; submitLabel?: string;
   onClose: () => void; onSubmit: (v: Record<string, string | number>) => Promise<void> | void; error?: string;
 }) {
   const t = useTheme();
@@ -35,6 +35,7 @@ export function FormSheet({ visible, title, fields, initial = {}, submitLabel = 
         <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityLabel="Tutup" />
         <View style={{ backgroundColor: t.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: 20, gap: 14, width: '100%', maxWidth: 560, alignSelf: 'center' }}>
           <Text variant="titleL" accessibilityRole="header">{title}</Text>
+          {hint ? <Text variant="bodySm" color="inkMuted">{hint}</Text> : null}
           {fields.map((f) => (
             <TextField key={f.key} label={f.label} value={vals[f.key] ?? ''} placeholder={f.placeholder}
               keyboardType={f.numeric ? 'number-pad' : 'default'} maxLength={f.numeric ? 13 : 60}

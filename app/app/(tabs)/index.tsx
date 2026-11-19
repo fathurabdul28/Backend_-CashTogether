@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -15,11 +15,12 @@ import { EmptyState, ErrorState, ListSkeleton, SectionHeader, Skeleton } from '@
 import { useBudgets, useGoals, useSummary, useTransactions } from '@/features/queries';
 import { useLookup } from '@/features/lookup';
 import { useSettings } from '@/features/settings';
-import { dayKey, dayLabel, daysLeftInMonth, greeting, monthKey } from '@/lib/date';
+import { dayKey, dayLabel, greeting } from '@/lib/date';
+import { usePeriod } from '@/features/period';
 import { formatIDR, formatIDRCompact } from '@/lib/format';
 import { radius, useTheme } from '@/theme';
 
-function BalanceCard({ total, income, expense }: { total?: number; income?: number; expense?: number }) {
+function BalanceCard({ total, income, expense, word }: { total?: number; income?: number; expense?: number; word: string }) {
   const t = useTheme();
   const hidden = useSettings((s) => s.hideBalance);
   const set = useSettings((s) => s.setHideBalance);
@@ -39,7 +40,7 @@ function BalanceCard({ total, income, expense }: { total?: number; income?: numb
         {total === undefined ? <Skeleton w={200} h={40} /> : <Money value={total} variant="displayXL" colorBy="none" hidden={hidden} color="onCard" sign="none" style={{ color: fg }} />}
       </View>
       <View style={{ flexDirection: 'row', marginTop: 8 }}>
-        {[{ l: 'Masuk bulan ini', v: income, I: ArrowDownLeft }, { l: 'Keluar bulan ini', v: expense, I: ArrowUpRight }].map((c, i) => (
+        {[{ l: `Masuk ${word}`, v: income, I: ArrowDownLeft }, { l: `Keluar ${word}`, v: expense, I: ArrowUpRight }].map((c, i) => (
           <View key={c.l} style={{ flex: 1, paddingLeft: i ? 16 : 0, borderLeftWidth: i ? 1 : 0, borderLeftColor: 'rgba(255,255,255,0.2)', gap: 2 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <c.I size={14} color={fg} /><Text variant="bodySm" style={{ color: fg, opacity: 0.8 }}>{c.l}</Text>
@@ -57,8 +58,7 @@ export default function Home() {
   const router = useRouter();
   const qc = useQueryClient();
   const L = useLookup();
-  const [month, setMonth] = useState(new Date());
-  const mk = monthKey(month);
+  const { key: mk, word, isCurrent, daysLeft } = usePeriod();
   const summary = useSummary(mk);
   const budgets = useBudgets(mk);
   const goals = useGoals();
@@ -88,8 +88,8 @@ export default function Home() {
         </Pressable>
       </View>
 
-      <BalanceCard total={summary.data?.balance} income={summary.data?.income} expense={summary.data?.expense} />
-      <View style={{ marginVertical: 12 }}><MonthSwitcher value={month} onChange={setMonth} /></View>
+      <BalanceCard total={summary.data?.balance} income={summary.data?.income} expense={summary.data?.expense} word={word} />
+      <View style={{ marginVertical: 12 }}><MonthSwitcher /></View>
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 28, marginTop: 4 }}>
         {actions.map(({ l, I, go, bg, fg }) => (
@@ -103,13 +103,13 @@ export default function Home() {
       <SectionHeader title="Anggaran" actionLabel="Atur" onAction={() => router.push('/budget')} />
       <View style={{ backgroundColor: t.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: t.hairline, padding: 16, gap: 10, marginBottom: 28 }}>
         {budgets.isLoading ? <Skeleton h={40} /> : !bTot || bTot.items.length === 0 ? (
-          <Text color="inkMuted">Belum ada anggaran bulan ini. Atur dulu supaya pengeluaran lebih terkontrol.</Text>
+          <Text color="inkMuted">Belum ada anggaran {word}. Atur dulu supaya pengeluaran lebih terkontrol.</Text>
         ) : (
           <>
             <Text variant="body">Terpakai <Text variant="titleM">{formatIDR(bTot.total_spent)}</Text> dari {formatIDR(bTot.total_limit)}</Text>
             <ProgressBar value={ratio} tint={barTint} />
             <Text variant="bodySm" color="inkMuted">
-              {ratio > 1 ? `Lewat ${formatIDR(bTot.total_spent - bTot.total_limit)}. Tidak apa-apa, coba atur ulang minggu depan.` : `Sisa ${formatIDR(bTot.total_limit - bTot.total_spent)} · ${daysLeftInMonth()} hari lagi`}
+              {ratio > 1 ? `Lewat ${formatIDR(bTot.total_spent - bTot.total_limit)}. Tidak apa-apa, coba atur ulang minggu depan.` : `Sisa ${formatIDR(bTot.total_limit - bTot.total_spent)} ${isCurrent ? ` · ${daysLeft} hari lagi` : ''}`}
             </Text>
             {bTot.items.slice().sort((a, b) => b.spent - a.spent).slice(0, 3).map((b) => {
               const c = L.category(b.category_id);
@@ -148,7 +148,7 @@ export default function Home() {
 
       <SectionHeader title="Transaksi terakhir" actionLabel="Lihat semua" onAction={() => router.push('/(tabs)/transactions')} />
       {txs.isLoading ? <ListSkeleton rows={4} /> : txs.isError ? <ErrorState onRetry={() => txs.refetch()} /> : recent.length === 0 ? (
-        <EmptyState icon={<TrendUp size={48} color={t.inkFaint} />} title="Belum ada catatan bulan ini." actionLabel="Catat sekarang" onAction={() => router.push('/transaction/new')} />
+        <EmptyState icon={<TrendUp size={48} color={t.inkFaint} />} title={`Belum ada catatan ${word}.`} actionLabel="Catat sekarang" onAction={() => router.push('/transaction/new')} />
       ) : recent.map((x, i) => (
         <View key={x.id}>
           {(i === 0 || dayKey(recent[i - 1].occurred_at) !== dayKey(x.occurred_at)) ? <Text variant="label" color="inkMuted" style={{ marginTop: i ? 12 : 0, marginBottom: 4 }}>{dayLabel(x.occurred_at)}</Text> : null}

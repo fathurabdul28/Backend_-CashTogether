@@ -6,7 +6,8 @@ COPY . .
 RUN composer dump-autoload --optimize --no-dev --classmap-authoritative --ignore-platform-reqs
 
 FROM php:8.3-cli-alpine
-RUN apk add --no-cache ca-certificates && docker-php-ext-install pdo_mysql opcache
+# zip: dibutuhkan openspout untuk menulis file .xlsx
+RUN apk add --no-cache ca-certificates libzip-dev && docker-php-ext-install pdo_mysql opcache zip
 WORKDIR /var/www
 COPY --from=vendor /app /var/www
 RUN mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \

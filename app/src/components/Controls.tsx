@@ -3,7 +3,8 @@ import { Pressable, TextInput, View, type TextInputProps, type ViewStyle } from 
 import * as Haptics from 'expo-haptics';
 import { CaretLeft, CaretRight, Eye, EyeSlash } from 'phosphor-react-native';
 import { radius, useTheme } from '@/theme';
-import { addMonths, monthLabel } from '@/lib/date';
+import { addMonths } from '@/lib/date';
+import { usePeriod } from '@/features/period';
 import { Text } from './Text';
 import { IconButton } from './Button';
 
@@ -36,13 +37,14 @@ export function FilterChip({ label, active, onPress }: { label: string; active?:
   );
 }
 
-export function MonthSwitcher({ value, onChange }: { value: Date; onChange: (d: Date) => void }) {
+export function MonthSwitcher() {
   const t = useTheme();
+  const { month, setMonth, label } = usePeriod();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-      <IconButton label="Bulan sebelumnya" onPress={() => onChange(addMonths(value, -1))} icon={<CaretLeft size={20} color={t.inkMuted} />} />
-      <Text variant="titleM" style={{ minWidth: 150, textAlign: 'center', textTransform: 'capitalize' }}>{monthLabel(value)}</Text>
-      <IconButton label="Bulan berikutnya" onPress={() => onChange(addMonths(value, 1))} icon={<CaretRight size={20} color={t.inkMuted} />} />
+      <IconButton label="Periode sebelumnya" onPress={() => setMonth(addMonths(month, -1))} icon={<CaretLeft size={20} color={t.inkMuted} />} />
+      <Text variant="titleM" accessibilityLiveRegion="polite" style={{ minWidth: 190, textAlign: 'center', textTransform: 'capitalize' }}>{label}</Text>
+      <IconButton label="Periode berikutnya" onPress={() => setMonth(addMonths(month, 1))} icon={<CaretRight size={20} color={t.inkMuted} />} />
     </View>
   );
 }

@@ -70,7 +70,7 @@ class TransactionController extends Controller
             'amount' => $req.'integer|min:1|max:999999999999999',
             'category_id' => $req.'integer',
             'account_id' => $req.'integer',
-            'occurred_at' => 'nullable|date',
+            'occurred_at' => 'nullable|date|before_or_equal:+1 day',
             'note' => 'nullable|string|max:500',
         ]);
         $h = $this->hid($r);

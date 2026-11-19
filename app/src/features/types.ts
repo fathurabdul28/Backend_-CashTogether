@@ -9,7 +9,7 @@ export type Tx = {
   id: number; type: TxType; amount: number; category_id: number | null; account_id: number;
   occurred_at: string; note: string | null; created_by: number; updated_by: number | null; updated_at: string;
 };
-export type Summary = { balance: number; income: number; expense: number; saved: number };
+export type Summary = { balance: number; income: number; expense: number; saved: number; period?: string; label?: string };
 export type Goal = {
   id: number; name: string; target_amount: number; target_date: string | null; icon: string; color: string;
   achieved_at: string | null; saved: number; contributions: Record<string, number>; monthly_needed: number | null;

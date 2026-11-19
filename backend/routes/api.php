@@ -1,10 +1,13 @@
 <?php
 
-use App\Http\Controllers\{WhatsAppController, AccountController, AuthController, BudgetController, CategoryController, HouseholdController, ReportController, SavingController, TransactionController};
+use App\Http\Controllers\{ExportController, WhatsAppController, AccountController, AuthController, BudgetController, CategoryController, HouseholdController, ReportController, SavingController, TransactionController};
 use Illuminate\Support\Facades\Route;
 
 Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
 Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+
+// Unduhan ekspor: tautan sementara bertanda tangan (dibuat lewat POST /export/link)
+Route::get('/export/download', [ExportController::class, 'download'])->name('export.download')->middleware(['signed', 'throttle:20,1']);
 
 // Webhook Fonnte (tanpa login; diamankan rahasia di URL)
 Route::post('/whatsapp/fonnte/{secret}', [WhatsAppController::class, 'webhook'])->middleware('throttle:60,1');
@@ -27,6 +30,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/summary', [ReportController::class, 'summary']);
         Route::get('/reports/monthly', [ReportController::class, 'monthly']);
         Route::get('/pulse', [ReportController::class, 'pulse']);
+        Route::post('/export/link', [ExportController::class, 'link'])->middleware('throttle:20,1');
 
         Route::apiResource('transactions', TransactionController::class)->parameters(['transactions' => 'id']);
         Route::post('/transactions/{id}/restore', [TransactionController::class, 'restore']);

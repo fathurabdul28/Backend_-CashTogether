@@ -33,5 +33,12 @@ Catat lewat chat: kirim "pengeluaran 34 ribu untuk makan" ke nomor bot, lalu bot
 4. Fonnte → Device → **Webhook** → isi `https://<url-publik>/api/whatsapp/fonnte/<FONNTE_WEBHOOK_SECRET>`.
 5. Di app: **Pengaturan → Hubungkan WhatsApp**, lalu kirim `HUBUNGKAN <kode>` ke bot.
 
-Perintah: `SALDO`, `REKAP`, `BATAL` (hapus catatan WhatsApp terakhir), `BANTUAN`. Tambahkan `pakai bca` untuk memilih akun, dan `kemarin` / `3 hari lalu` untuk tanggal.
+Perintah: `SALDO`, `REKAP`, `BATAL` (hapus catatan WhatsApp terakhir; bila pesannya berisi beberapa barang, semuanya dibatalkan), `BANTUAN`.
+Beberapa barang sekaligus: `makan 25rb dan kopi 80rb`, `gaji 10 juta, bonus 2 juta` (maksimal 10 per pesan). Tambahkan `pakai bca` untuk memilih akun, dan `kemarin` / `3 hari lalu` untuk tanggal.
 Pengujian lokal API ke database terpisah: jangan pakai `php artisan serve` dengan variabel `DB_*` dari shell (tidak diteruskan); pakai `APP_ENV=nama` + file `.env.nama`.
+
+## Periode gajian, ekspor, dan data contoh
+- **Periode gajian**: Pengaturan → Periode keuangan → isi tanggal gajian (mis. 25). Beranda, Riwayat, Laporan, dan Anggaran lalu memakai periode 25 s.d. 24.
+- **Ekspor Excel / Google Sheets**: tombol di Riwayat, Laporan, dan Pengaturan (semua data). File `.xlsx` berisi sheet Transaksi, Ringkasan, dan Tabungan.
+- **Data contoh**: `php artisan db:seed --class=DemoSeeder` (lihat komentar di file untuk `DEMO_EMAIL`, `DEMO_CYCLE`, `DEMO_FRESH`, `DEMO_APPEND`). Untuk produksi: `APP_ENV=tidb ...` dengan `backend/.env.tidb`.
+

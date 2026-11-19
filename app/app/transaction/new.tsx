@@ -14,6 +14,9 @@ import { useToast } from '@/features/toast';
 import type { TxType } from '@/features/types';
 import { ApiError } from '@/lib/api';
 import { formatIDR } from '@/lib/format';
+import { pickedDateLabel } from '@/lib/date';
+import { DatePickerSheet } from '@/components/DatePickerSheet';
+import { isToday } from 'date-fns';
 import { radius, useTheme } from '@/theme';
 import { X } from 'phosphor-react-native';
 
@@ -44,7 +47,8 @@ export default function NewTransaction() {
   const [digits, setDigits] = useState('');
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [accountId, setAccountId] = useState<number | null>(null);
-  const [yesterday, setYesterday] = useState(false);
+  const [date, setDate] = useState(() => new Date());
+  const [pickDate, setPickDate] = useState(false);
   const [note, setNote] = useState('');
   const [pickAccount, setPickAccount] = useState(false);
   const [err, setErr] = useState('');
@@ -61,7 +65,8 @@ export default function NewTransaction() {
   const submit = async () => {
     if (amount <= 0) return setErr('Masukkan nominal dulu');
     if (!categoryId) return setErr('Pilih kategori dulu');
-    const when = new Date(); if (yesterday) when.setDate(when.getDate() - 1);
+    // hari ini: pakai jam sekarang; tanggal lain: jam 12 siang supaya aman dari pergeseran zona waktu
+    const when = isToday(date) ? new Date() : new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
     try {
       const tx = await save.mutateAsync({
         type, amount, account_id: accountId, occurred_at: when.toISOString(), note: note.trim() || null, category_id: categoryId,
@@ -115,8 +120,8 @@ export default function NewTransaction() {
           </ScrollView>
 
         <View style={{ marginTop: 4 }}>
-          <Row h={compact ? 46 : 52} icon={<CalendarBlank size={20} color={t.inkMuted} />} label="Tanggal" onPress={() => setYesterday(!yesterday)}>
-            <Text variant="body">{yesterday ? 'Kemarin' : 'Hari ini'}</Text>
+          <Row h={compact ? 46 : 52} icon={<CalendarBlank size={20} color={t.inkMuted} />} label="Tanggal" onPress={() => setPickDate(true)}>
+            <Text variant="body" style={{ color: t.primary }} accessibilityHint="Ketuk untuk memilih tanggal">{pickedDateLabel(date)}</Text>
           </Row>
           <Row h={compact ? 46 : 52} icon={<Wallet size={20} color={t.inkMuted} />} label={type === 'income' ? 'Ke akun' : 'Dari akun'} onPress={() => setPickAccount(!pickAccount)}>
             <Text variant="body">{L.account(accountId)?.name ?? '-'}</Text>
@@ -132,6 +137,7 @@ export default function NewTransaction() {
       {err ? <Text variant="bodySm" color="danger" style={{ textAlign: 'center', marginBottom: 6 }} accessibilityLiveRegion="polite">{err}</Text> : null}
       <Button label="Simpan" size="lg" tint={tint} loading={save.isPending} disabled={!canSave && !err ? false : false} onPress={submit} style={{ marginBottom: 8, opacity: canSave ? 1 : 0.5 }} />
       <NumPad keyHeight={compact ? 44 : 56} onKey={press} onBackspace={() => setDigits((d) => d.slice(0, -1))} onClear={() => setDigits('')} />
+      <DatePickerSheet visible={pickDate} value={date} onClose={() => setPickDate(false)} onPick={setDate} />
     </Screen>
   );
 }

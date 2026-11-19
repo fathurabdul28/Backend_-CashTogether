@@ -14,7 +14,7 @@ import { useBudgets, useSetBudget } from '@/features/queries';
 import { useLookup } from '@/features/lookup';
 import { useToast } from '@/features/toast';
 import { post } from '@/lib/api';
-import { monthKey } from '@/lib/date';
+import { usePeriod } from '@/features/period';
 import { formatIDR } from '@/lib/format';
 import { radius, useTheme } from '@/theme';
 
@@ -22,8 +22,7 @@ export default function BudgetScreen() {
   const t = useTheme();
   const qc = useQueryClient();
   const L = useLookup();
-  const [month, setMonth] = useState(new Date());
-  const mk = monthKey(month);
+  const { key: mk } = usePeriod();
   const q = useBudgets(mk);
   const set = useSetBudget(mk);
   const [editing, setEditing] = useState<number | null>(null);
@@ -33,14 +32,14 @@ export default function BudgetScreen() {
   return (
     <Screen scroll bottomInset={40} onRefresh={() => q.refetch()}>
       <Header title="Anggaran" />
-      <MonthSwitcher value={month} onChange={setMonth} />
+      <MonthSwitcher />
       <View style={{ backgroundColor: t.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: t.hairline, padding: 16, gap: 10, marginVertical: 16 }}>
         <Text variant="label" color="inkMuted">Total terpakai</Text>
         <Text variant="displayL">{formatIDR(q.data?.total_spent ?? 0)}</Text>
         <ProgressBar value={ratio} tint={ratio > 1 ? t.expense : ratio >= 0.75 ? t.warning : t.primary} />
         <Text variant="bodySm" color="inkMuted">dari anggaran {formatIDR(q.data?.total_limit ?? 0)}</Text>
       </View>
-      <Button variant="secondary" label="Salin dari bulan lalu" onPress={async () => {
+      <Button variant="secondary" label="Salin dari periode lalu" onPress={async () => {
         const r = await post<{ copied: number }>('/budgets/copy-previous', {}, { month: mk });
         qc.invalidateQueries({ queryKey: ['budgets'] });
         useToast.getState().show(r.copied ? `${r.copied} anggaran disalin` : 'Tidak ada yang perlu disalin');

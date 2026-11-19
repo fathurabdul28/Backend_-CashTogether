@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\SavingEntry;
 use App\Models\SavingGoal;
 use App\Models\Transaction;
+use App\Support\Period;
 use App\Support\Wallet;
 use Illuminate\Http\Request;
 
@@ -29,7 +30,9 @@ class ReportController extends Controller
         $all = $this->mine($r)->get(['type', 'amount', 'occurred_at']);
         $saved = (int) $this->myEntries($r)->sum('amount');
         $month = $all->filter(fn ($t) => $t->occurred_at->between($from, $to));
+        $key = $this->periodKey($r);
         return [
+            'period' => $key, 'label' => Period::label($key, $this->cycleDay($r)),
             'balance' => Wallet::balance($r->user()->id, $this->hid($r)),
             'income' => (int) $month->where('type', 'income')->sum('amount'),
             'expense' => (int) $month->where('type', 'expense')->sum('amount'),
@@ -44,10 +47,15 @@ class ReportController extends Controller
         $exp = $tx->where('type', 'expense');
         $inc = $tx->where('type', 'income');
 
-        $weeks = collect([[1, 7], [8, 14], [15, 21], [22, 31]])->map(fn ($w) => [
-            'label' => "{$w[0]}-".min($w[1], $to->day),
-            'income' => (int) $inc->filter(fn ($t) => $t->occurred_at->day >= $w[0] && $t->occurred_at->day <= $w[1])->sum('amount'),
-            'expense' => (int) $exp->filter(fn ($t) => $t->occurred_at->day >= $w[0] && $t->occurred_at->day <= $w[1])->sum('amount'),
+        // 4 kotak mingguan dihitung dari tanggal mulai periode; kotak terakhir memuat sisa hari
+        $key = $this->periodKey($r);
+        [$startLocal] = Period::local($key, $this->cycleDay($r));
+        $tz = Period::tz();
+        $bucket = fn ($t) => min(3, intdiv((int) $startLocal->copy()->startOfDay()->diffInDays($t->occurred_at->copy()->setTimezone($tz)->startOfDay()), 7));
+        $weeks = collect(range(0, 3))->map(fn ($i) => [
+            'label' => $startLocal->copy()->addDays($i * 7)->locale('id')->translatedFormat('j M'),
+            'income' => (int) $inc->filter(fn ($t) => $bucket($t) === $i)->sum('amount'),
+            'expense' => (int) $exp->filter(fn ($t) => $bucket($t) === $i)->sum('amount'),
         ]);
 
         $cats = Category::where('household_id', $this->hid($r))->get()->keyBy('id');
@@ -60,7 +68,7 @@ class ReportController extends Controller
 
         // Wawasan rule-based
         $prev = $this->mine($r)->where('type', 'expense')
-            ->whereBetween('occurred_at', [$from->copy()->subMonth(), $from->copy()->subMonth()->endOfMonth()])->get();
+            ->whereBetween('occurred_at', Period::utc(Period::previousKey($key), $this->cycleDay($r)))->get();
         $insights = [];
         $food = $cats->firstWhere('name', 'Makan & Minum');
         if ($food) {
@@ -72,7 +80,7 @@ class ReportController extends Controller
         if ($income > 0 && $saved > 0) $insights[] = 'Kamu menabung '.round($saved / $income * 100).'% pemasukan bulan ini.';
 
         return [
-            'month' => $from->format('Y-m'), 'income' => $income, 'expense' => $total,
+            'month' => $key, 'label' => Period::label($key, $this->cycleDay($r)), 'income' => $income, 'expense' => $total,
             'weeks' => $weeks, 'by_category' => $byCat, 'insights' => array_slice($insights, 0, 2),
         ];
     }

@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { ScrollView, SectionList, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MagnifyingGlass, Receipt } from 'phosphor-react-native';
+import { DownloadSimple, MagnifyingGlass, Receipt } from 'phosphor-react-native';
+import { exportExcel } from '@/features/export';
 import { Text } from '@/components/Text';
 import { Screen } from '@/components/Screen';
 import { FilterChip, MonthSwitcher } from '@/components/Controls';
@@ -11,7 +12,8 @@ import { EmptyState, ErrorState, ListSkeleton } from '@/components/Feedback';
 import { useTransactions } from '@/features/queries';
 import { useLookup } from '@/features/lookup';
 import type { Tx } from '@/features/types';
-import { dayKey, dayLabel, monthKey } from '@/lib/date';
+import { dayKey, dayLabel } from '@/lib/date';
+import { usePeriod } from '@/features/period';
 import { formatIDRCompact } from '@/lib/format';
 import { useTheme } from '@/theme';
 
@@ -21,11 +23,11 @@ export default function History() {
   const t = useTheme();
   const router = useRouter();
   const L = useLookup();
-  const [month, setMonth] = useState(new Date());
+  const { key: mk, word } = usePeriod();
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
   const [searching, setSearching] = useState(false);
-  const q = useTransactions(monthKey(month));
+  const q = useTransactions(mk);
 
   const rows = useMemo(() => (q.data ?? []).filter((x) => {
     if (filter !== 'all' && x.type !== filter) return false;
@@ -50,13 +52,16 @@ export default function History() {
     <Screen>
       <View style={{ minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Text variant="displayM" accessibilityRole="header">Riwayat</Text>
-        <IconButton label="Cari" onPress={() => { setSearching(!searching); setSearch(''); }} icon={<MagnifyingGlass size={24} color={t.ink} />} />
+        <View style={{ flexDirection: 'row' }}>
+          <IconButton label="Ekspor ke Excel" onPress={() => exportExcel({ month: mk })} icon={<DownloadSimple size={24} color={t.ink} />} />
+          <IconButton label="Cari" onPress={() => { setSearching(!searching); setSearch(''); }} icon={<MagnifyingGlass size={24} color={t.ink} />} />
+        </View>
       </View>
       {searching ? (
         <TextInput autoFocus value={search} onChangeText={setSearch} placeholder="Cari catatan, kategori, nominal" placeholderTextColor={t.inkFaint} accessibilityLabel="Cari"
           style={{ height: 44, borderRadius: 12, paddingHorizontal: 14, backgroundColor: t.surfaceAlt, color: t.ink, fontFamily: 'PlusJakartaSans_500Medium', marginBottom: 8, outlineStyle: 'none' } as any} />
       ) : null}
-      <MonthSwitcher value={month} onChange={setMonth} />
+      <MonthSwitcher />
       <View style={{ height: 46, marginTop: 8 }}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20 }} contentContainerStyle={{ paddingHorizontal: 20, alignItems: 'center' }}>
           {chips.map((c) => <FilterChip key={c.k} label={c.l} active={filter === c.k} onPress={() => setFilter(c.k)} />)}
@@ -69,7 +74,7 @@ export default function History() {
         <SectionList
           sections={sections} keyExtractor={(x) => String(x.id)} stickySectionHeadersEnabled showsVerticalScrollIndicator={false}
           refreshing={q.isRefetching} onRefresh={() => q.refetch()} contentContainerStyle={{ paddingBottom: 40 }}
-          ListEmptyComponent={<EmptyState icon={<Receipt size={48} color={t.inkFaint} />} title="Belum ada catatan bulan ini." actionLabel="Catat sekarang" onAction={() => router.push('/transaction/new')} />}
+          ListEmptyComponent={<EmptyState icon={<Receipt size={48} color={t.inkFaint} />} title={`Belum ada catatan ${word}.`} actionLabel="Catat sekarang" onAction={() => router.push('/transaction/new')} />}
           renderSectionHeader={({ section }) => (
             <View style={{ backgroundColor: t.bg, flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
               <Text variant="label" color="inkMuted">{section.title}</Text>

@@ -13,6 +13,9 @@ import { useAuth } from '@/features/auth';
 import { useSettings } from '@/features/settings';
 import { useLookup } from '@/features/lookup';
 import { del, get, patch, post } from '@/lib/api';
+import { FormSheet } from '@/components/FormSheet';
+import { exportExcel } from '@/features/export';
+import { resetPeriod } from '@/features/period';
 import { radius, useTheme } from '@/theme';
 import type { Gender } from '@/theme/identity';
 
@@ -66,6 +69,9 @@ export default function Settings() {
   const L = useLookup();
   const s = useSettings();
   const logout = useAuth((x) => x.logout);
+  const qc = useQueryClient();
+  const [cycleOpen, setCycleOpen] = useState(false);
+  const cycle = L.me?.cycle_start_day ?? 1;
 
   const Group = ({ title, children }: { title: string; children: React.ReactNode }) => (
     <View style={{ marginBottom: 20 }}>
@@ -96,7 +102,10 @@ export default function Settings() {
       <WhatsAppGroup Group={Group} Row={Row} />
       <Group title="Data">
         <Row label="Akun & sumber dana" onPress={() => router.push('/accounts')} />
-        <Row label="Anggaran" onPress={() => router.push('/budget')} last />
+        <Row label="Anggaran" onPress={() => router.push('/budget')} />
+        <Row label="Ekspor semua data (Excel)" onPress={() => exportExcel({ all: true })} />
+        <Row label="Periode keuangan" onPress={() => setCycleOpen(true)} last
+          right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Text color="inkMuted">{cycle === 1 ? 'Tiap tanggal 1' : `Tiap tanggal ${cycle}`}</Text><CaretRight size={18} color={t.inkFaint} /></View>} />
       </Group>
       <Group title="Tampilan">
         <View style={{ paddingVertical: 10 }}>
@@ -110,7 +119,19 @@ export default function Settings() {
             options={[{ value: 'male', label: 'Biru' }, { value: 'female', label: 'Pink' }]} />
         </View>
       </Group>
-      <Button variant="ghost" label="Keluar" onPress={logout} style={{ marginTop: 4 }} />
+      <FormSheet visible={cycleOpen} title="Periode keuangan" onClose={() => setCycleOpen(false)}
+        hint="Isi tanggal gajianmu. Contoh 25: periode berjalan dari tanggal 25 sampai 24 bulan berikutnya. Isi 1 untuk bulan kalender biasa. Berlaku untuk Beranda, Riwayat, Laporan, dan Anggaran."
+        fields={[{ key: 'cycle_start_day', label: 'Mulai tanggal (1–28)', numeric: true }]} initial={{ cycle_start_day: String(cycle) }}
+        onSubmit={async (v) => {
+          const n = Number(v.cycle_start_day);
+          if (!Number.isInteger(n) || n < 1 || n > 28) throw new Error('Isi tanggal antara 1 dan 28.');
+          await patch('/me', { cycle_start_day: n });
+          await useAuth.getState().refresh();
+          resetPeriod();
+          qc.invalidateQueries();
+          setCycleOpen(false);
+        }} />
+      <Button variant="ghost" label="Keluar" onPress={async () => { resetPeriod(); await logout(); }} style={{ marginTop: 4 }} />
       <Text variant="bodySm" color="inkFaint" style={{ textAlign: 'center', marginTop: 8 }}>CashTogether 1.0.0</Text>
     </Screen>
   );

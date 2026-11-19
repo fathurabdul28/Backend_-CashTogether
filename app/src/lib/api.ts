@@ -18,14 +18,19 @@ export async function api<T = any>(method: string, path: string, body?: unknown,
     ? '?' + Object.entries(query).filter(([, v]) => v != null && v !== '').map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join('&')
     : '';
   let res: Response;
+  // Server gratis bisa butuh ~1 menit untuk bangun; setelah itu anggap gagal agar app tidak menggantung selamanya
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 70_000);
   try {
     res = await fetch(`${BASE}${path}${qs}`, {
-      method,
+      method, signal: ctl.signal,
       headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
     throw new ApiError(0, 'Sedang offline atau server tidak terjangkau. Coba lagi sebentar ya.');
+  } finally {
+    clearTimeout(timer);
   }
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => ({}));

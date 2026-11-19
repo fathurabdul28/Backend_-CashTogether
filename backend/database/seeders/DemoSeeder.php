@@ -10,41 +10,56 @@ use App\Models\SavingEntry;
 use App\Models\SavingGoal;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Support\Period;
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 
 /**
- * Data contoh: dua akun, saldo masing-masing, tabungan bersama.
- *   php artisan db:seed --class=DemoSeeder                 (email default fathur@gmail.com)
- *   DEMO_EMAIL=lain@x.id php artisan db:seed --class=DemoSeeder
- *   DEMO_FRESH=1 ...   menghapus transaksi/anggaran/tabungan dompet itu dulu, lalu mengisi ulang
- * Tanpa DEMO_FRESH, seeder menolak jalan bila dompet sudah punya transaksi.
+ * Data contoh untuk dua akun satu dompet: gaji Rp10.000.000 per orang tiap tanggal gajian,
+ * pengeluaran sehari-hari, dan satu tabungan bersama "Tabungan Nikah".
+ *
+ *   php artisan db:seed --class=DemoSeeder
+ *   DEMO_EMAIL=lain@x.id DEMO_CYCLE=25 DEMO_FRESH=1 php artisan db:seed --class=DemoSeeder
+ *
+ * DEMO_EMAIL  salah satu email dari pasangan (default fathurtest@gmail.com)
+ * DEMO_CYCLE  tanggal gajian = awal periode (default 25)
+ * DEMO_FRESH  hapus transaksi/anggaran/tabungan/akun dompet itu dulu, lalu isi ulang.
+ * DEMO_APPEND tambahkan data contoh di samping data yang sudah ada, tanpa menghapus apa pun (jangan diulang: akan menggandakan).
+ * Tanpa keduanya, seeder menolak jalan bila dompet sudah punya transaksi.
  */
 class DemoSeeder extends Seeder
 {
     public function run(): void
     {
-        $him = User::where('email', env('DEMO_EMAIL', 'fathur@gmail.com'))->firstOrFail();
+        $him = User::where('email', env('DEMO_EMAIL', 'fathurtest@gmail.com'))->firstOrFail();
         $hid = HouseholdMember::where('user_id', $him->id)->value('household_id');
         abort_if(! $hid, 1, 'User belum punya dompet.');
         $ids = HouseholdMember::where('household_id', $hid)->pluck('user_id');
         abort_if($ids->count() < 2, 1, 'Dompet belum berisi 2 orang.');
         $her = $ids->first(fn ($id) => $id !== $him->id);
+        $cycle = Period::clampDay((int) env('DEMO_CYCLE', 25));
 
         if (env('DEMO_FRESH')) {
             Transaction::withTrashed()->where('household_id', $hid)->forceDelete();
             Budget::where('household_id', $hid)->delete();
-            SavingGoal::where('household_id', $hid)->delete(); // entries ikut terhapus (cascade)
-            Account::where('household_id', $hid)->where(fn ($q) => $q->whereNull('owner_id')->orWhereIn('owner_id', $ids))->delete();
-        } elseif (Transaction::where('household_id', $hid)->exists()) {
-            $this->command->warn('Dompet sudah punya transaksi, seeder dilewati. Pakai DEMO_FRESH=1 untuk mengisi ulang.');
+            SavingGoal::where('household_id', $hid)->delete(); // setoran ikut terhapus (cascade)
+            Account::where('household_id', $hid)->where(fn ($q) => $q->whereNull('owner_id')->orWhereIn('owner_id', $ids))->where('name', '!=', 'Tunai')->delete();
+        } elseif (! env('DEMO_APPEND') && Transaction::where('household_id', $hid)->exists()) {
+            $this->command->warn('Dompet sudah punya transaksi, seeder dilewati. DEMO_FRESH=1 mengganti semuanya; DEMO_APPEND=1 menambah tanpa menghapus.');
             return;
         }
+
+        User::whereIn('id', $ids)->update(['cycle_start_day' => $cycle]);
+
+        $now = Carbon::now(Period::tz());
+        $cur = Period::currentKey($cycle, $now);
+        $periods = [Period::previousKey($cur), $cur]; // satu periode penuh + periode berjalan
 
         $cat = fn (string $n, string $k) => Category::where('household_id', $hid)->where('name', $n)->where('kind', $k)->value('id');
         $account = fn (int $uid, string $name, string $type) => Account::firstOrCreate(
             ['household_id' => $hid, 'owner_id' => $uid, 'name' => $name], ['type' => $type, 'initial_balance' => 0])->id;
 
-        // [hari, kategori, nominal, akun('t' tunai | 'b' BCA), catatan]
+        // [hari ke-N sejak awal periode, kategori, nominal, akun('t' tunai | 'b' BCA), catatan]
         $plans = [
             $him->id => [
                 [2, 'Rumah', 1_800_000, 'b', 'Cicilan kontrakan'], [3, 'Pulsa & Internet', 350_000, 'b', 'Wifi & pulsa'],
@@ -63,40 +78,43 @@ class DemoSeeder extends Seeder
             ],
         ];
 
+        $goal = SavingGoal::firstOrCreate(
+            ['household_id' => $hid, 'name' => 'Tabungan Nikah'],
+            ['target_amount' => 100_000_000, 'icon' => 'Heart', 'color' => 'plum', 'target_date' => $now->copy()->addMonths(24)->toDateString(), 'created_by' => $him->id],
+        );
+
         foreach ([$him->id => 'Gaji Fathur', $her => 'Gaji Wulan'] as $uid => $salaryNote) {
             $acc = ['t' => $account($uid, 'Tunai', 'cash'), 'b' => $account($uid, 'BCA', 'bank')];
-            foreach ([now()->subMonthNoOverflow()->startOfMonth(), now()->startOfMonth()] as $m) {
-                $at = fn (int $d) => $m->copy()->day(min($d, $m->daysInMonth))->setTime(rand(8, 20), rand(0, 59));
-                $rows = array_merge([[1, 'Gaji', 10_000_000, 'b', $salaryNote]], $plans[$uid]);
-                foreach ($rows as [$d, $c, $amt, $a, $note]) {
-                    if ($m->copy()->day(min($d, $m->daysInMonth))->gt(now())) continue;
+            foreach ($periods as $key) {
+                [$start] = Period::local($key, $cycle);
+                $at = fn (int $dayOffset, ?int $hour = null) => $start->copy()->addDays($dayOffset)->setTime($hour ?? rand(8, 20), rand(0, 59));
+                // gaji tepat di tanggal mulai periode (offset 0); pengeluaran hari ke-N berarti N-1 hari setelah awal periode
+                $rows = array_merge(
+                    [[0, 'Gaji', 10_000_000, 'b', $salaryNote]],
+                    array_map(fn ($r) => [$r[0] - 1, $r[1], $r[2], $r[3], $r[4]], $plans[$uid]),
+                );
+                foreach ($rows as $r) {
+                    [$offset, $c, $amt, $a, $note] = [$r[0], $r[1], $r[2], $r[3], $r[4]];
+                    $when = $at($offset, $c === 'Gaji' ? 9 : null);
+                    if ($when->gt($now)) continue; // jangan membuat transaksi di masa depan
                     $type = $c === 'Gaji' ? 'income' : 'expense';
                     Transaction::create([
                         'household_id' => $hid, 'type' => $type, 'amount' => $amt, 'category_id' => $cat($c, $type),
-                        'account_id' => $acc[$a], 'occurred_at' => $at($d), 'note' => $note, 'created_by' => $uid, 'paid_by' => $uid,
+                        'account_id' => $acc[$a], 'occurred_at' => $when->copy()->utc(), 'note' => $note, 'created_by' => $uid, 'paid_by' => $uid,
                     ]);
                 }
+                // Setoran bulanan ke Tabungan Nikah sehari setelah gajian
+                $deposit = $at(1, 10);
+                if ($deposit->lte($now)) {
+                    SavingEntry::create(['goal_id' => $goal->id, 'amount' => 3_000_000, 'contributed_by' => $uid, 'occurred_at' => $deposit->copy()->utc(), 'note' => 'Setoran bulanan']);
+                }
             }
-            // Anggaran pribadi bulan ini
-            $month = now()->startOfMonth()->toDateString();
-            foreach ([['Makan & Minum', 1_000_000], ['Belanja Harian', 1_000_000], ['Transportasi', 400_000], ['Hiburan', 400_000], ['Belanja', 500_000]] as [$n, $l]) {
-                Budget::updateOrCreate(['household_id' => $hid, 'user_id' => $uid, 'category_id' => $cat($n, 'expense'), 'month' => $month], ['limit_amount' => $l]);
+            // Anggaran pribadi untuk periode berjalan
+            foreach ([['Makan & Minum', 1_000_000], ['Belanja Harian', 1_200_000], ['Transportasi', 400_000], ['Hiburan', 400_000], ['Belanja', 500_000]] as [$n, $l]) {
+                Budget::updateOrCreate(['household_id' => $hid, 'user_id' => $uid, 'category_id' => $cat($n, 'expense'), 'month' => $cur.'-01'], ['limit_amount' => $l]);
             }
         }
 
-        // Tabungan: satu-satunya yang dipakai bersama
-        $goal = fn (string $n, int $target, string $icon, string $color, string $date) => SavingGoal::create([
-            'household_id' => $hid, 'name' => $n, 'target_amount' => $target, 'icon' => $icon, 'color' => $color,
-            'target_date' => $date, 'created_by' => $him->id]);
-        $entry = fn ($g, int $amt, int $by, int $daysAgo, string $note) => SavingEntry::create([
-            'goal_id' => $g->id, 'amount' => $amt, 'contributed_by' => $by, 'occurred_at' => now()->subDays($daysAgo), 'note' => $note]);
-
-        $g1 = $goal('Dana Darurat', 30_000_000, 'Shield', 'teal', now()->addMonths(9)->toDateString());
-        $entry($g1, 2_000_000, $him->id, 40, 'Setoran awal'); $entry($g1, 2_000_000, $her, 40, 'Setoran awal');
-        $entry($g1, 1_500_000, $him->id, 10, 'Setoran rutin'); $entry($g1, 1_500_000, $her, 10, 'Setoran rutin');
-        $g2 = $goal('Liburan Bali', 12_000_000, 'Airplane', 'mustard', now()->addMonths(6)->toDateString());
-        $entry($g2, 1_000_000, $her, 20, 'Sisa belanja'); $entry($g2, 1_000_000, $him->id, 8, 'Bonus kecil');
-
-        $this->command->info("Data contoh dibuat untuk dompet #{$hid}: gaji masing-masing Rp10.000.000, saldo terpisah, tabungan bersama.");
+        $this->command->info("Data contoh dibuat untuk dompet #{$hid}: gaji Rp10.000.000 per orang, periode mulai tanggal {$cycle}, tabungan 'Tabungan Nikah'.");
     }
 }
