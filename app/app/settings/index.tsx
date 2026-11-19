@@ -14,6 +14,8 @@ import { useSettings } from '@/features/settings';
 import { useLookup } from '@/features/lookup';
 import { del, get, patch, post } from '@/lib/api';
 import { FormSheet } from '@/components/FormSheet';
+import { useRecurring, type Recurring } from '@/features/queries';
+import { formatIDR } from '@/lib/format';
 import { exportExcel } from '@/features/export';
 import { resetPeriod } from '@/features/period';
 import { radius, useTheme } from '@/theme';
@@ -71,6 +73,8 @@ export default function Settings() {
   const logout = useAuth((x) => x.logout);
   const qc = useQueryClient();
   const [cycleOpen, setCycleOpen] = useState(false);
+  const [editRec, setEditRec] = useState<Recurring | null>(null);
+  const recurring = useRecurring().data ?? [];
   const cycle = L.me?.cycle_start_day ?? 1;
 
   const Group = ({ title, children }: { title: string; children: React.ReactNode }) => (
@@ -99,6 +103,25 @@ export default function Settings() {
         {L.members.map((m) => <Row key={m.user_id} label={m.name} right={<Avatar user={m} size={28} />} last={!L.household?.invite_code && m === L.members[L.members.length - 1]} />)}
         {L.household?.invite_code ? <Row label="Kode undangan" right={<Text variant="titleM" style={{ letterSpacing: 3 }}>{L.household.invite_code}</Text>} last /> : null}
       </Group>
+      <Group title="GAJI & PEMASUKAN RUTIN">
+        {recurring.length === 0 ? <Row label="Belum ada" right={<Text color="inkMuted" variant="bodySm">Catat pemasukan, nyalakan “Tiap bulan”</Text>} last /> : null}
+        {recurring.map((r, i) => (
+          <Row key={r.id} label={`${r.note || 'Pemasukan'} · tgl ${r.day}`} onPress={() => setEditRec(r)} last={i === recurring.length - 1}
+            right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Text color={r.active ? 'income' : 'inkFaint'}>{r.active ? formatIDR(r.amount) : 'Berhenti'}</Text><CaretRight size={18} color={t.inkFaint} /></View>} />
+        ))}
+      </Group>
+      <FormSheet visible={!!editRec} title="Pemasukan rutin" onClose={() => setEditRec(null)} submitLabel="Simpan"
+        hint="Perubahan nominal berlaku mulai bulan berikutnya. Yang sudah tercatat tidak berubah. Isi nominal 0 untuk menghentikan; isi lagi nanti untuk menyalakan kembali."
+        fields={[{ key: 'amount', label: 'Nominal tiap bulan', numeric: true }, { key: 'day', label: 'Masuk tanggal (1–28)', numeric: true }]}
+        initial={{ amount: String(editRec?.amount ?? ''), day: String(editRec?.day ?? '') }}
+        onSubmit={async (v) => {
+          const day = Number(v.day);
+          if (!Number.isInteger(day) || day < 1 || day > 28) throw new Error('Isi tanggal antara 1 dan 28.');
+          const amount = Number(v.amount ?? 0);
+          if (amount < 1) await patch(`/recurring/${editRec!.id}`, { active: false });
+          else await patch(`/recurring/${editRec!.id}`, { amount, day, active: true });
+          qc.invalidateQueries(); setEditRec(null);
+        }} />
       <WhatsAppGroup Group={Group} Row={Row} />
       <Group title="Data">
         <Row label="Akun & sumber dana" onPress={() => router.push('/accounts')} />

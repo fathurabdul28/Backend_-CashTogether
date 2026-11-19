@@ -91,3 +91,6 @@ export function usePulse(enabled: boolean) {
     return () => { alive = false; stop(); sub.remove(); };
   }, [enabled, qc, me, hh]);
 }
+
+export type Recurring = { id: number; amount: number; day: number; note: string | null; active: boolean; category_id: number | null; account_id: number; next_month: string };
+export const useRecurring = () => useQuery({ queryKey: ['recurring'], queryFn: () => get<Recurring[]>('/recurring') });

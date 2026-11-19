@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\{ExportController, WhatsAppController, AccountController, AuthController, BudgetController, CategoryController, HouseholdController, ReportController, SavingController, TransactionController};
+use App\Http\Controllers\{ExportController, RecurringController, WhatsAppController, AccountController, AuthController, BudgetController, CategoryController, HouseholdController, ReportController, SavingController, TransactionController};
 use Illuminate\Support\Facades\Route;
 
 Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
@@ -34,6 +34,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::apiResource('transactions', TransactionController::class)->parameters(['transactions' => 'id']);
         Route::post('/transactions/{id}/restore', [TransactionController::class, 'restore']);
+
+        Route::get('/recurring', [RecurringController::class, 'index']);
+        Route::post('/recurring', [RecurringController::class, 'store']);
+        Route::patch('/recurring/{id}', [RecurringController::class, 'update']);
+        Route::delete('/recurring/{id}', [RecurringController::class, 'destroy']);
 
         Route::get('/accounts', [AccountController::class, 'index']);
         Route::post('/accounts', [AccountController::class, 'store']);

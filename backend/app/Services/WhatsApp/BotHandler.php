@@ -120,6 +120,7 @@ class BotHandler
 
     private function recap(User $user, int $hid): string
     {
+        \App\Services\RecurringIncomes::apply($user->id, $hid);
         $tz = Period::tz();
         $today = Carbon::now($tz);
         $cycle = Period::clampDay($user->cycle_start_day);

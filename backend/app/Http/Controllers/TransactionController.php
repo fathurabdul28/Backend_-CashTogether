@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Account;
 use App\Models\Category;
+use App\Models\RecurringIncome;
 use App\Models\Transaction;
+use App\Services\RecurringIncomes;
+use App\Support\Period;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -29,7 +32,18 @@ class TransactionController extends Controller
         $d = $this->validated($r);
         $d += ['household_id' => $this->hid($r), 'created_by' => $r->user()->id, 'paid_by' => $r->user()->id];
         $d['occurred_at'] ??= now();
-        return response(Transaction::create($d), 201);
+        $repeat = $r->boolean('repeat_monthly') && $d['type'] === 'income';
+        $tx = Transaction::create($d);
+        if ($repeat) { // "gaji tiap bulan": bulan berikutnya dicatat otomatis pada tanggal yang sama
+            $local = $tx->occurred_at->copy()->setTimezone(Period::tz());
+            RecurringIncome::create([
+                'household_id' => $d['household_id'], 'user_id' => $r->user()->id, 'amount' => $d['amount'],
+                'category_id' => $d['category_id'], 'account_id' => $d['account_id'], 'note' => $d['note'] ?? null,
+                'day' => min(28, $local->day), 'next_month' => $local->copy()->startOfMonth()->addMonthNoOverflow()->format('Y-m'),
+            ]);
+            RecurringIncomes::apply($r->user()->id, $d['household_id']);
+        }
+        return response($tx, 201);
     }
 
     public function update(Request $r, int $id)
@@ -72,7 +86,9 @@ class TransactionController extends Controller
             'account_id' => $req.'integer',
             'occurred_at' => 'nullable|date|before_or_equal:+1 day',
             'note' => 'nullable|string|max:500',
+            'repeat_monthly' => 'sometimes|boolean',
         ]);
+        unset($d['repeat_monthly']);
         $h = $this->hid($r);
         $fail = fn ($f, $m) => throw ValidationException::withMessages([$f => $m]);
 

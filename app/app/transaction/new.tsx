@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, TextInput, View, useWindowDimensions } from 'react-native';
+import { Pressable, ScrollView, Switch, TextInput, View, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { CalendarBlank, NotePencil, Wallet } from 'phosphor-react-native';
+import { ArrowsClockwise, CalendarBlank, NotePencil, Wallet } from 'phosphor-react-native';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Button, IconButton } from '@/components/Button';
@@ -50,13 +50,14 @@ export default function NewTransaction() {
   const [date, setDate] = useState(() => new Date());
   const [pickDate, setPickDate] = useState(false);
   const [note, setNote] = useState('');
+  const [repeat, setRepeat] = useState(false);
   const [pickAccount, setPickAccount] = useState(false);
   const [err, setErr] = useState('');
 
   const tint = type === 'income' ? t.income : t.expense;
   const amount = Number(digits || '0');
   const cats = useMemo(() => L.categories.filter((c) => c.kind === type), [L.categories, type]);
-  useEffect(() => { setCategoryId(null); setErr(''); }, [type]);
+  useEffect(() => { setCategoryId(null); setErr(''); if (type !== 'income') setRepeat(false); }, [type]);
   useEffect(() => { if (accountId == null && L.accounts[0]) setAccountId(L.accounts[0].id); }, [L.accounts, accountId]);
 
   const press = (k: string) => setDigits((d) => (d + k).replace(/^0+/, '').slice(0, 13));
@@ -69,12 +70,12 @@ export default function NewTransaction() {
     const when = isToday(date) ? new Date() : new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
     try {
       const tx = await save.mutateAsync({
-        type, amount, account_id: accountId, occurred_at: when.toISOString(), note: note.trim() || null, category_id: categoryId,
+        type, amount, account_id: accountId, occurred_at: when.toISOString(), note: note.trim() || null, category_id: categoryId, ...(repeat ? { repeat_monthly: true } : {}),
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       const name = L.category(categoryId)?.name;
       router.back();
-      useToast.getState().show(`Tersimpan · ${name} ${formatIDR(amount)}`, { label: 'Urungkan', run: () => del.mutate(tx.id) });
+      useToast.getState().show(`Tersimpan · ${name} ${formatIDR(amount)}${repeat ? ' · diulang tiap bulan' : ''}`, { label: 'Urungkan', run: () => del.mutate(tx.id) });
     } catch (e) { setErr(e instanceof ApiError ? e.message : 'Ada yang tidak beres. Coba lagi sebentar ya.'); }
   };
 
@@ -127,6 +128,11 @@ export default function NewTransaction() {
             <Text variant="body">{L.account(accountId)?.name ?? '-'}</Text>
           </Row>
           {pickAccount ? <AccountPicker /> : null}
+          {type === 'income' ? (
+            <Row h={compact ? 46 : 52} icon={<ArrowsClockwise size={20} color={t.inkMuted} />} label="Tiap bulan">
+              <Switch accessibilityLabel="Ulangi tiap bulan (mis. gaji)" value={repeat} onValueChange={setRepeat} trackColor={{ true: t.primary }} />
+            </Row>
+          ) : null}
           <Row h={compact ? 46 : 52} icon={<NotePencil size={20} color={t.inkMuted} />} label="Catatan">
             <TextInput accessibilityLabel="Catatan" value={note} onChangeText={setNote} placeholder="Opsional" placeholderTextColor={t.inkFaint} maxLength={200}
               style={{ color: t.ink, fontFamily: 'PlusJakartaSans_500Medium', fontSize: 15, textAlign: 'right', width: '100%', outlineStyle: 'none' } as any} />

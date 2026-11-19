@@ -39,6 +39,7 @@ Pengujian lokal API ke database terpisah: jangan pakai `php artisan serve` denga
 
 ## Periode gajian, ekspor, dan data contoh
 - **Periode gajian**: Pengaturan → Periode keuangan → isi tanggal gajian (mis. 25). Beranda, Riwayat, Laporan, dan Anggaran lalu memakai periode 25 s.d. 24.
+- **Gaji rutin**: di layar Catat pilih Masuk, nyalakan "Tiap bulan" — bulan berikutnya tercatat otomatis (nominal dan tanggal sama). Kelola/hentikan di Pengaturan → Gaji & Pemasukan Rutin. Dicatat saat app/bot dibuka (bukan penjadwal), jadi aman di server gratis yang tidur.
 - **Ekspor Excel / Google Sheets**: tombol di Riwayat, Laporan, dan Pengaturan (semua data). File `.xlsx` berisi sheet Transaksi, Ringkasan, dan Tabungan.
 - **Data contoh**: `php artisan db:seed --class=DemoSeeder` (lihat komentar di file untuk `DEMO_EMAIL`, `DEMO_CYCLE`, `DEMO_FRESH`, `DEMO_APPEND`). Untuk produksi: `APP_ENV=tidb ...` dengan `backend/.env.tidb`.
 

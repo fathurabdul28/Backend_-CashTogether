@@ -13,6 +13,7 @@ class EnsureHousehold
         $id = $request->user()->householdId();
         abort_if(! $id, 409, 'Kamu belum punya dompet bersama.');
         $request->attributes->set('household_id', $id);
+        \App\Services\RecurringIncomes::apply($request->user()->id, $id); // catat gaji rutin yang sudah jatuh tempo
         return $next($request);
     }
 }
