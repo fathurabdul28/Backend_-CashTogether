@@ -1,0 +1,28 @@
+# Blueprint Render (free tier). Database: TiDB Cloud Starter (MySQL-compatible, gratis).
+# Semua nilai bertanda `sync: false` diisi manual di dashboard Render (jangan ditulis di file ini).
+services:
+  - type: web
+    name: cashtogether-api
+    runtime: docker
+    plan: free
+    rootDir: backend
+    healthCheckPath: /up
+    envVars:
+      - { key: APP_ENV, value: production }
+      - { key: APP_DEBUG, value: "false" }
+      - { key: APP_KEY, sync: false }            # hasil `php artisan key:generate --show` (berawalan base64:)
+      - { key: DB_CONNECTION, value: mysql }
+      - { key: DB_HOST, sync: false }            # dari TiDB Cloud, mis. gateway01.xxx.prod.aws.tidbcloud.com
+      - { key: DB_PORT, value: "4000" }
+      - { key: DB_DATABASE, sync: false }
+      - { key: DB_USERNAME, sync: false }
+      - { key: DB_PASSWORD, sync: false }
+      - { key: MYSQL_ATTR_SSL_CA, value: /etc/ssl/certs/ca-certificates.crt }  # TiDB Cloud mewajibkan TLS
+      - { key: SESSION_DRIVER, value: array }
+      - { key: CACHE_STORE, value: file }
+      - { key: QUEUE_CONNECTION, value: sync }
+      - { key: LOG_CHANNEL, value: stderr }
+      - { key: FONNTE_TOKEN, sync: false }
+      - { key: FONNTE_WEBHOOK_SECRET, sync: false }
+      - { key: FONNTE_BOT_NUMBER, sync: false }
+      - { key: WA_TIMEZONE, value: Asia/Jakarta }
