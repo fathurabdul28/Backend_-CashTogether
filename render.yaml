@@ -26,3 +26,18 @@ services:
       - { key: FONNTE_WEBHOOK_SECRET, sync: false }
       - { key: FONNTE_BOT_NUMBER, sync: false }
       - { key: WA_TIMEZONE, value: Asia/Jakarta }
+
+  # Versi web (PWA) dari app Expo: dibuka di Safari/Chrome lalu "Tambah ke Layar Utama".
+  - type: web
+    name: cashtogether-web
+    runtime: static
+    rootDir: app
+    buildCommand: npm ci && npx expo export -p web
+    staticPublishPath: dist
+    envVars:
+      - { key: NODE_VERSION, value: "22" }
+      - { key: EXPO_PUBLIC_API_URL, value: https://backend-cashtogether.onrender.com/api }
+    routes:
+      - type: rewrite        # semua alamat dikembalikan ke index.html (app satu halaman)
+        source: /*
+        destination: /index.html

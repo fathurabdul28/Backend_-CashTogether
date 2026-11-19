@@ -20,7 +20,8 @@ Alur produksi: Fonnte → `https://<app>.onrender.com/api/whatsapp/fonnte/<rahas
 2. **API**: render.com → New → Blueprint → pilih repo (`render.yaml`). Isi variabel `sync: false`: `APP_KEY` (`php artisan key:generate --show`), `DB_HOST`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `FONNTE_*`. Migrasi berjalan otomatis saat start. Cek `https://<app>.onrender.com/up`.
 3. **Agar tidak tidur**: UptimeRobot / cron-job.org → ping `https://<app>.onrender.com/up` tiap 5 menit.
 4. **Fonnte**: ganti URL webhook ke alamat Render.
-5. **App**: `EXPO_PUBLIC_API_URL=https://<app>.onrender.com/api`. Web: `npx expo export -p web` lalu upload `dist/` ke Cloudflare Pages / Netlify. Android: isi URL di `app/eas.json` lalu `npx eas-cli build -p android --profile preview`.
+5. **Web (PWA)**: Render → New → Static Site → repo ini. Root Directory `app`, Build Command `npm ci && npx expo export -p web`, Publish Directory `dist`, env `EXPO_PUBLIC_API_URL=https://<app>.onrender.com/api` dan `NODE_VERSION=22`. Tab Redirects/Rewrites: `/*` → `/index.html` (Rewrite). Di iPhone: buka alamat situs di Safari → Bagikan → Tambah ke Layar Utama.
+6. **Android**: isi URL di `app/eas.json` lalu `npx eas-cli build -p android --profile preview`.
 Catatan: Render gratis tidur setelah 15 menit tanpa lalu lintas; penyimpanan filenya tidak permanen (semua data ada di TiDB).
 
 ## WhatsApp (Fonnte)

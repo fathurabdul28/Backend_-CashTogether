@@ -36,12 +36,27 @@ function Guard({ children }: { children: React.ReactNode }) {
 
 function Shell() {
   const t = useTheme();
+  const user = useAuth((s) => s.user);
+  const ready = !!user?.household_id; // sudah login DAN punya dompet
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       <StatusBar style={t.scheme === 'dark' ? 'light' : 'dark'} />
       <Guard>
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, animation: 'fade_from_bottom' }}>
-          <Stack.Screen name="transaction/new" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          {/* Layar aplikasi tidak dirender sama sekali sebelum login (tidak ada panggilan API yang ditolak) */}
+          <Stack.Protected guard={ready} redirectTo="/(auth)/welcome">
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="transaction/new" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="transaction/[id]" />
+            <Stack.Screen name="savings/[id]" />
+            <Stack.Screen name="budget/index" />
+            <Stack.Screen name="accounts/index" />
+            <Stack.Screen name="settings/index" />
+          </Stack.Protected>
+          {/* Welcome / Masuk / Daftar / Hubungkan pasangan */}
+          <Stack.Protected guard={!ready} redirectTo="/(tabs)">
+            <Stack.Screen name="(auth)" />
+          </Stack.Protected>
         </Stack>
       </Guard>
       <Toast bottom={100} />

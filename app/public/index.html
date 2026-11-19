@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <!-- viewport-fit=cover: isi layar penuh di iPhone berponi; safe-area ditangani di app -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>CashTogether</title>
+    <meta name="description" content="Catat uang berdua: saldo masing-masing, tabungan bersama." />
+
+    <!-- Tambah ke Layar Utama -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="CashTogether" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#F6F2EA" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#121714" media="(prefers-color-scheme: dark)" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: #F6F2EA; /* sama dengan warna latar app, mencegah kilatan putih */
+        -webkit-text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
+      }
+      @media (prefers-color-scheme: dark) {
+        html,
+        body {
+          background: #121714;
+        }
+      }
+      /* Body tidak ikut scroll; yang scroll adalah ScrollView di dalam app */
+      body {
+        overflow: hidden;
+        overscroll-behavior: none;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+  </head>
+
+  <body>
+    <noscript>Aktifkan JavaScript untuk memakai CashTogether.</noscript>
+    <div id="root"></div>
+  </body>
+</html>

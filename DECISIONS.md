@@ -24,3 +24,5 @@ Perubahan terhadap DESIGN_SPEC.md (spec awal memakai Supabase; diganti Laravel a
 - DB: TiDB Cloud Starter. Isi `DB_HOST`/`DB_DATABASE`/`DB_USERNAME`/`DB_PASSWORD` di Render.
 - Android: build APK gratis lewat EAS (`eas build -p android --profile preview`).
 - Web: `npx expo export -p web` → Cloudflare Pages / Vercel.
+- Web/PWA: `web.output = single`, jadi tag HTML diatur di `app/public/index.html` (bukan `+html.tsx`), manifest di `app/public/manifest.json`. Tanpa service worker (tidak wajib untuk "Tambah ke Layar Utama", dan menghindari masalah cache saat memperbarui). iOS tidak punya jalur app asli gratis tanpa App Store; PWA dipilih untuk iPhone.
+- Rute dilindungi dengan `Stack.Protected` (Expo Router SDK 58): layar app tidak dirender sebelum login + punya dompet.
