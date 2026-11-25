@@ -12,8 +12,8 @@ export type Tx = {
 export type Summary = { balance: number; income: number; expense: number; saved: number; period?: string; label?: string };
 export type Goal = {
   id: number; name: string; target_amount: number; target_date: string | null; icon: string; color: string;
-  achieved_at: string | null; saved: number; contributions: Record<string, number>; monthly_needed: number | null;
-  entries?: { id: number; amount: number; contributed_by: number; occurred_at: string; note: string | null }[];
+  achieved_at: string | null; saved: number; gold_grams: number; contributions: Record<string, number>; monthly_needed: number | null;
+  entries?: { id: number; amount: number; contributed_by: number; occurred_at: string; note: string | null; from_balance: boolean; gold_grams: number | null; is_conversion: boolean }[];
 };
 export type BudgetItem = { id: number; category_id: number; limit_amount: number; spent: number };
 export type Budgets = { month: string; total_limit: number; total_spent: number; items: BudgetItem[] };

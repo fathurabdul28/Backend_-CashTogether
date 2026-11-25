@@ -5,7 +5,7 @@ import { Button } from './Button';
 import { TextField } from './Controls';
 import { Text } from './Text';
 
-export type Field = { key: string; label: string; numeric?: boolean; optional?: boolean; placeholder?: string };
+export type Field = { key: string; label: string; numeric?: boolean; decimal?: boolean; optional?: boolean; placeholder?: string };
 
 /** Sheet form sederhana: kolom teks / nominal. Nilai numeric dikembalikan sebagai integer. */
 export function FormSheet({ visible, title, hint, fields, initial = {}, submitLabel = 'Simpan', onClose, onSubmit, error }: {
@@ -38,8 +38,8 @@ export function FormSheet({ visible, title, hint, fields, initial = {}, submitLa
           {hint ? <Text variant="bodySm" color="inkMuted">{hint}</Text> : null}
           {fields.map((f) => (
             <TextField key={f.key} label={f.label} value={vals[f.key] ?? ''} placeholder={f.placeholder}
-              keyboardType={f.numeric ? 'number-pad' : 'default'} maxLength={f.numeric ? 13 : 60}
-              onChangeText={(v) => setVals({ ...vals, [f.key]: f.numeric ? v.replace(/\D/g, '') : v })} />
+              keyboardType={f.numeric ? 'number-pad' : f.decimal ? 'decimal-pad' : 'default'} maxLength={f.numeric ? 13 : 60}
+              onChangeText={(v) => setVals({ ...vals, [f.key]: f.numeric ? v.replace(/\D/g, '') : f.decimal ? v.replace(/[^\d.,]/g, '') : v })} />
           ))}
           {(err || error) ? <Text variant="bodySm" color="danger">{err || error}</Text> : null}
           <Button label={submitLabel} size="lg" loading={busy} disabled={!valid} onPress={go} />

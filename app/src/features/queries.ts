@@ -48,6 +48,14 @@ export function useAddEntry(goalId: number) {
     onSuccess: () => ['goals', 'goal', 'report'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })),
   });
 }
+export function useConvertGold(goalId: number) {
+  const qc = useQueryClient();
+  const refresh = () => ['goals', 'goal', 'report', 'summary'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+  return {
+    convert: useMutation({ mutationFn: (b: { amount: number; gold_grams: number }) => post(`/saving-goals/${goalId}/convert`, b), onSuccess: refresh }),
+    undo: useMutation({ mutationFn: (entry: number) => del(`/saving-goals/${goalId}/conversions/${entry}`), onSuccess: refresh }),
+  };
+}
 export function useSetBudget(month: string) {
   const qc = useQueryClient();
   return useMutation({

@@ -135,9 +135,9 @@ export default function Home() {
         {(goals.data ?? []).map((g) => (
           <Pressable key={g.id} accessibilityRole="button" onPress={() => router.push(`/savings/${g.id}`)}
             style={{ width: 160, backgroundColor: t.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: t.hairline, padding: 14, gap: 10 }}>
-            <ProgressRing value={g.saved / g.target_amount} size={48} stroke={5}><Text variant="label" style={{ fontSize: 11 }}>{Math.round((g.saved / g.target_amount) * 100)}%</Text></ProgressRing>
+            <ProgressRing value={g.target_amount > 0 ? g.saved / g.target_amount : 0} size={48} stroke={5}><Text variant="label" style={{ fontSize: 11 }}>{g.target_amount > 0 ? `${Math.round((g.saved / g.target_amount) * 100)}%` : 'Rp'}</Text></ProgressRing>
             <Text variant="titleM" numberOfLines={1}>{g.name}</Text>
-            <Text variant="bodySm" color="inkMuted">{formatIDRCompact(g.saved)} / {formatIDRCompact(g.target_amount)}</Text>
+            <Text variant="bodySm" color="inkMuted">{formatIDRCompact(g.saved)}{g.target_amount > 0 ? ` / ${formatIDRCompact(g.target_amount)}` : ''}</Text>
           </Pressable>
         ))}
         <Pressable accessibilityRole="button" accessibilityLabel="Target baru" onPress={() => router.push('/(tabs)/savings')}

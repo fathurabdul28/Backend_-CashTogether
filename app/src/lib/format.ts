@@ -14,3 +14,6 @@ export const spokenIDR = (n: number, kind?: string) =>
   `${kind ? kind + ' ' : ''}${Math.abs(Math.round(n)).toLocaleString('id-ID')} rupiah`;
 
 export const initial = (name?: string) => (name?.trim()[0] ?? '?').toUpperCase();
+
+/** 1.5 → "1,5 g emas" */
+export const formatGold = (g: number) => `${g.toLocaleString('id-ID', { maximumFractionDigits: 2 })} g emas`;

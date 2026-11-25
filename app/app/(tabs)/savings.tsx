@@ -13,7 +13,7 @@ import { FormSheet } from '@/components/FormSheet';
 import { useGoals } from '@/features/queries';
 import { useLookup } from '@/features/lookup';
 import { post } from '@/lib/api';
-import { formatIDR } from '@/lib/format';
+import { formatGold, formatIDR } from '@/lib/format';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { radius, useTheme } from '@/theme';
@@ -53,13 +53,14 @@ export default function Savings() {
       <View style={{ backgroundColor: t.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: t.hairline, padding: 16, marginBottom: 20, gap: 4 }}>
         <Text variant="label" color="inkMuted">Total ditabung</Text>
         <Text variant="displayL" color="saving">{formatIDR(total)}</Text>
-        <Text variant="bodySm" color="inkMuted">dari {goals.length} target</Text>
+        <Text variant="bodySm" color="inkMuted">dari {goals.length} tabungan{goals.some((g) => g.gold_grams > 0) ? ` · + ${formatGold(goals.reduce((s, g) => s + g.gold_grams, 0))}` : ''}</Text>
       </View>
       {q.isLoading ? <ListSkeleton rows={3} /> : q.isError ? <ErrorState onRetry={() => q.refetch()} /> : goals.length === 0 ? (
         <EmptyState icon={<Target size={48} color={t.inkFaint} />} title="Belum ada target. Mau mulai dari dana darurat?" actionLabel="Buat target" onAction={() => setOpen(true)} />
       ) : goals.map((g) => {
         const done = !!g.achieved_at;
-        const pct = g.saved / g.target_amount;
+        const hasTarget = g.target_amount > 0; // tabungan dari daftar chat boleh tanpa target
+        const pct = hasTarget ? g.saved / g.target_amount : 0;
         return (
           <Pressable key={g.id} accessibilityRole="button" onPress={() => router.push(`/savings/${g.id}`)}
             style={{ flexDirection: 'row', gap: 12, padding: 14, marginBottom: 12, backgroundColor: t.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: t.hairline }}>
@@ -70,8 +71,13 @@ export default function Savings() {
                 {done ? <View style={{ flexDirection: 'row', gap: 4, backgroundColor: t.incomeSoft, borderRadius: 99, paddingHorizontal: 8, paddingVertical: 2, alignItems: 'center' }}><CheckCircle size={14} color={t.income} weight="fill" /><Text variant="label" color="income">Tercapai</Text></View> : <Contribution goalContrib={g.contributions} />}
               </View>
               {g.target_date ? <Text variant="bodySm" color="inkMuted">Target {format(new Date(g.target_date), 'd MMM yyyy', { locale: id })}</Text> : null}
-              <ProgressBar value={pct} tint={t.saving} />
-              <Text variant="bodySm" color="inkMuted">{formatIDR(g.saved)} / {formatIDR(g.target_amount)} · {Math.round(pct * 100)}%</Text>
+              {hasTarget ? (
+                <>
+                  <ProgressBar value={pct} tint={t.saving} />
+                  <Text variant="bodySm" color="inkMuted">{formatIDR(g.saved)} / {formatIDR(g.target_amount)} · {Math.round(pct * 100)}%</Text>
+                </>
+              ) : <Text variant="titleM" color="saving">{formatIDR(g.saved)}</Text>}
+              {g.gold_grams > 0 ? <Text variant="bodySm" color="inkMuted">+ {formatGold(g.gold_grams)}</Text> : null}
             </View>
           </Pressable>
         );
