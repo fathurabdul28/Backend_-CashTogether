@@ -49,6 +49,7 @@ function Shell() {
             <Stack.Screen name="transaction/new" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
             <Stack.Screen name="transaction/[id]" />
             <Stack.Screen name="savings/[id]" />
+            <Stack.Screen name="gold" />
             <Stack.Screen name="budget/index" />
             <Stack.Screen name="accounts/index" />
             <Stack.Screen name="settings/index" />

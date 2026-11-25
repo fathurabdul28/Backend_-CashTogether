@@ -10,10 +10,10 @@ import { CategoryIcon } from '@/components/CategoryIcon';
 import { ProgressBar } from '@/components/Progress';
 import { EmptyState, ErrorState, ListSkeleton } from '@/components/Feedback';
 import { FormSheet } from '@/components/FormSheet';
-import { useGoals } from '@/features/queries';
+import { useGoals, useGoldPrice } from '@/features/queries';
 import { useLookup } from '@/features/lookup';
 import { post } from '@/lib/api';
-import { formatGold, formatIDR } from '@/lib/format';
+import { formatIDR, goldWithValue } from '@/lib/format';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { radius, useTheme } from '@/theme';
@@ -42,6 +42,8 @@ export default function Savings() {
   const [open, setOpen] = useState(false);
   const create = useMutation({ mutationFn: (b: any) => post('/saving-goals', { icon: 'Target', color: 'teal', ...b }), onSuccess: () => qc.invalidateQueries({ queryKey: ['goals'] }) });
   const goals = q.data ?? [];
+  const price = useGoldPrice().data?.price_per_gram;
+  const grams = goals.reduce((s, g) => s + g.gold_grams, 0);
   const total = goals.reduce((s, g) => s + g.saved, 0);
 
   return (
@@ -53,7 +55,9 @@ export default function Savings() {
       <View style={{ backgroundColor: t.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: t.hairline, padding: 16, marginBottom: 20, gap: 4 }}>
         <Text variant="label" color="inkMuted">Total ditabung</Text>
         <Text variant="displayL" color="saving">{formatIDR(total)}</Text>
-        <Text variant="bodySm" color="inkMuted">dari {goals.length} tabungan{goals.some((g) => g.gold_grams > 0) ? ` · + ${formatGold(goals.reduce((s, g) => s + g.gold_grams, 0))}` : ''}</Text>
+        <Text variant="bodySm" color="inkMuted">dari {goals.length} tabungan</Text>
+        {grams > 0 ? <Text variant="titleM">+ {goldWithValue(grams, price)}</Text> : null}
+        {grams > 0 && price ? <Text variant="bodySm" color="inkMuted">Perkiraan rupiah + emas: {formatIDR(total + grams * price)} (harga spot)</Text> : null}
       </View>
       {q.isLoading ? <ListSkeleton rows={3} /> : q.isError ? <ErrorState onRetry={() => q.refetch()} /> : goals.length === 0 ? (
         <EmptyState icon={<Target size={48} color={t.inkFaint} />} title="Belum ada target. Mau mulai dari dana darurat?" actionLabel="Buat target" onAction={() => setOpen(true)} />
@@ -77,7 +81,7 @@ export default function Savings() {
                   <Text variant="bodySm" color="inkMuted">{formatIDR(g.saved)} / {formatIDR(g.target_amount)} · {Math.round(pct * 100)}%</Text>
                 </>
               ) : <Text variant="titleM" color="saving">{formatIDR(g.saved)}</Text>}
-              {g.gold_grams > 0 ? <Text variant="bodySm" color="inkMuted">+ {formatGold(g.gold_grams)}</Text> : null}
+              {g.gold_grams > 0 ? <Text variant="bodySm" color="inkMuted">+ {goldWithValue(g.gold_grams, price)}</Text> : null}
             </View>
           </Pressable>
         );

@@ -15,5 +15,9 @@ export const spokenIDR = (n: number, kind?: string) =>
 
 export const initial = (name?: string) => (name?.trim()[0] ?? '?').toUpperCase();
 
+/** "2 g emas (≈ Rp4,17 jt)"; tanpa harga cukup gramnya */
+export const goldWithValue = (grams: number, pricePerGram?: number | null) =>
+  pricePerGram ? `${formatGold(grams)} (≈ ${formatIDRCompact(grams * pricePerGram)})` : formatGold(grams);
+
 /** 1.5 → "1,5 g emas" */
 export const formatGold = (g: number) => `${g.toLocaleString('id-ID', { maximumFractionDigits: 2 })} g emas`;

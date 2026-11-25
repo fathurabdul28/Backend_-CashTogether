@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { del, get, post, put } from '@/lib/api';
 import { useAuth } from './auth';
 import { useToast } from './toast';
@@ -16,7 +16,14 @@ export const useTransaction = (id: number) => useQuery({ queryKey: ['transaction
 export const useGoals = () => useQuery({ queryKey: ['goals'], queryFn: () => get<Goal[]>('/saving-goals') });
 export const useGoal = (id: number) => useQuery({ queryKey: ['goal', id], queryFn: () => get<Goal>(`/saving-goals/${id}`) });
 export const useBudgets = (month: string) => useQuery({ queryKey: ['budgets', month], queryFn: () => get<Budgets>('/budgets', { month }) });
-export const useReport = (month: string) => useQuery({ queryKey: ['report', month], queryFn: () => get<Report>('/reports/monthly', { month }) });
+// Laporan disimpan 5 menit (perubahan data tetap menyegarkannya lewat invalidasi/pulse), dan data lama tetap tampil saat ganti periode.
+const reportQuery = (month: string) => ({ queryKey: ['report', month], queryFn: () => get<Report>('/reports/monthly', { month }), staleTime: 5 * 60_000 });
+export const useReport = (month: string) => useQuery({ ...reportQuery(month), placeholderData: keepPreviousData });
+/** Dipanggil Beranda supaya Laporan sudah siap saat tabnya dibuka. */
+export function usePrefetchReport(month: string, ready: boolean) {
+  const qc = useQueryClient();
+  useEffect(() => { if (ready) qc.prefetchQuery(reportQuery(month)); }, [qc, month, ready]);
+}
 
 const TX_KEYS = ['transactions', 'transaction', 'summary', 'accounts', 'report', 'budgets'];
 
@@ -102,3 +109,8 @@ export function usePulse(enabled: boolean) {
 
 export type Recurring = { id: number; amount: number; day: number; note: string | null; active: boolean; category_id: number | null; account_id: number; next_month: string };
 export const useRecurring = () => useQuery({ queryKey: ['recurring'], queryFn: () => get<Recurring[]>('/recurring') });
+
+export type GoldQuote = { price_per_gram: number | null; as_of: string | null; source: string | null; stale: boolean };
+/** live = layar Emas (disegarkan tiap menit); selain itu cukup dari cache untuk menaksir nilai emas tabungan. */
+export const useGoldPrice = (live = false) =>
+  useQuery({ queryKey: ['gold-price'], queryFn: () => get<GoldQuote>('/gold-price'), staleTime: live ? 60_000 : 5 * 60_000, refetchInterval: live ? 60_000 : false });

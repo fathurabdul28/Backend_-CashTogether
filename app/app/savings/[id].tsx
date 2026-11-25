@@ -8,10 +8,10 @@ import { Button } from '@/components/Button';
 import { ProgressRing } from '@/components/Progress';
 import { ErrorState, Skeleton } from '@/components/Feedback';
 import { FormSheet } from '@/components/FormSheet';
-import { useAddEntry, useConvertGold, useGoal } from '@/features/queries';
+import { useAddEntry, useConvertGold, useGoal, useGoldPrice } from '@/features/queries';
 import { useLookup } from '@/features/lookup';
 import { useUserColor, useTheme } from '@/theme';
-import { formatGold, formatIDR } from '@/lib/format';
+import { formatGold, formatIDR, goldWithValue } from '@/lib/format';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
@@ -30,6 +30,7 @@ export default function GoalDetail() {
   const q = useGoal(id);
   const add = useAddEntry(id);
   const gold = useConvertGold(id);
+  const price = useGoldPrice().data?.price_per_gram;
   const [converting, setConverting] = useState(false);
   const [undoId, setUndoId] = useState<number | null>(null); // ketuk dua kali supaya tidak batal tak sengaja
   const L = useLookup();
@@ -59,7 +60,8 @@ export default function GoalDetail() {
                 <Text variant="displayL" color="saving">{formatIDR(g.saved)}</Text>
               </>
             )}
-            {g.gold_grams > 0 ? <Text variant="titleM">+ {formatGold(g.gold_grams)}</Text> : null}
+            {g.gold_grams > 0 ? <Text variant="titleM">+ {goldWithValue(g.gold_grams, price)}</Text> : null}
+            {g.gold_grams > 0 && price ? <Text variant="bodySm" color="inkMuted">Perkiraan total {formatIDR(g.saved + g.gold_grams * price)} (emas dihitung harga spot)</Text> : null}
             {g.achieved_at ? <Text variant="titleM" color="income">Kalian berhasil! 🎉</Text>
               : g.monthly_needed ? <Text variant="bodySm" color="inkMuted" style={{ textAlign: 'center' }}>Butuh {formatIDR(g.monthly_needed)}/bulan untuk capai target {format(new Date(g.target_date!), 'd MMM yyyy', { locale: idLocale })}</Text> : null}
           </View>
@@ -104,7 +106,7 @@ export default function GoalDetail() {
         </>
       )}
       <FormSheet visible={converting} title="Konversi ke emas" submitLabel="Konversi" onClose={() => setConverting(false)}
-        hint={`Rupiah di tabungan ini: ${formatIDR(g?.saved ?? 0)}. Isi berapa rupiah yang dibelikan emas dan berapa gram yang didapat. Saldo dompet tidak berubah.`}
+        hint={`Rupiah di tabungan ini: ${formatIDR(g?.saved ?? 0)}. Isi berapa rupiah yang dibelikan emas dan berapa gram yang didapat. Saldo dompet tidak berubah.${price ? ` Harga spot sekarang ${formatIDR(price)}/gram; isi gram sesuai nota pembelian.` : ''}`}
         fields={[{ key: 'amount', label: 'Rupiah yang dipakai', numeric: true }, { key: 'grams', label: 'Dapat emas (gram), mis. 0,5', decimal: true }]}
         onSubmit={async (v) => {
           const amount = Number(v.amount);

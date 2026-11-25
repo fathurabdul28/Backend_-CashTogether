@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowDownLeft, ArrowUpRight, Wallet, Eye, EyeSlash, Plus, TrendUp, PiggyBank } from 'phosphor-react-native';
+import { ArrowDownLeft, ArrowUpRight, Wallet, Eye, EyeSlash, Plus, TrendUp, PiggyBank, Coins } from 'phosphor-react-native';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Money } from '@/components/Money';
@@ -12,12 +12,12 @@ import { ProgressBar, ProgressRing } from '@/components/Progress';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { TransactionRow } from '@/components/TransactionRow';
 import { EmptyState, ErrorState, ListSkeleton, SectionHeader, Skeleton } from '@/components/Feedback';
-import { useBudgets, useGoals, useSummary, useTransactions } from '@/features/queries';
+import { useBudgets, useGoals, useGoldPrice, usePrefetchReport, useSummary, useTransactions } from '@/features/queries';
 import { useLookup } from '@/features/lookup';
 import { useSettings } from '@/features/settings';
 import { dayKey, dayLabel, greeting } from '@/lib/date';
 import { usePeriod } from '@/features/period';
-import { formatIDR, formatIDRCompact } from '@/lib/format';
+import { formatIDR, formatIDRCompact, goldWithValue } from '@/lib/format';
 import { radius, useTheme } from '@/theme';
 
 function BalanceCard({ total, income, expense, word }: { total?: number; income?: number; expense?: number; word: string }) {
@@ -60,8 +60,10 @@ export default function Home() {
   const L = useLookup();
   const { key: mk, word, isCurrent, daysLeft } = usePeriod();
   const summary = useSummary(mk);
+  usePrefetchReport(mk, !!summary.data);
   const budgets = useBudgets(mk);
   const goals = useGoals();
+  const goldPrice = useGoldPrice().data?.price_per_gram;
   const txs = useTransactions(mk);
 
   const bTot = budgets.data;
@@ -74,6 +76,7 @@ export default function Home() {
     { l: 'Pengeluaran', I: ArrowUpRight, bg: t.expenseSoft, fg: t.expense, go: () => router.push('/transaction/new?type=expense') },
     { l: 'Anggaran', I: Wallet, bg: t.savingSoft, fg: t.saving, go: () => router.push('/budget') },
     { l: 'Tabung', I: PiggyBank, bg: t.warningSoft, fg: t.warning, go: () => router.push('/(tabs)/savings') },
+    { l: 'Emas', I: Coins, bg: t.warningSoft, fg: t.warning, go: () => router.push('/gold') },
   ];
 
   return (
@@ -138,6 +141,7 @@ export default function Home() {
             <ProgressRing value={g.target_amount > 0 ? g.saved / g.target_amount : 0} size={48} stroke={5}><Text variant="label" style={{ fontSize: 11 }}>{g.target_amount > 0 ? `${Math.round((g.saved / g.target_amount) * 100)}%` : 'Rp'}</Text></ProgressRing>
             <Text variant="titleM" numberOfLines={1}>{g.name}</Text>
             <Text variant="bodySm" color="inkMuted">{formatIDRCompact(g.saved)}{g.target_amount > 0 ? ` / ${formatIDRCompact(g.target_amount)}` : ''}</Text>
+            {g.gold_grams > 0 ? <Text variant="bodySm" color="inkMuted">+ {goldWithValue(g.gold_grams, goldPrice)}</Text> : null}
           </Pressable>
         ))}
         <Pressable accessibilityRole="button" accessibilityLabel="Target baru" onPress={() => router.push('/(tabs)/savings')}

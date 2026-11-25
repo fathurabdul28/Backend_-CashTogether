@@ -20,6 +20,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/gold-price', fn () => \App\Services\GoldPrice::current());
     Route::patch('/me', [AuthController::class, 'update']);
 
     Route::get('/household', [HouseholdController::class, 'showMine']);

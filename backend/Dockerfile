@@ -14,5 +14,7 @@ RUN mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cac
  && chown -R www-data:www-data storage bootstrap/cache
 USER www-data
 ENV PORT=10000
+# beberapa proses supaya permintaan tidak antre satu per satu; koneksi DB dipakai ulang (tanpa jabat tangan TLS tiap kali)
+ENV PHP_CLI_SERVER_WORKERS=4 DB_PERSISTENT=true
 EXPOSE 10000
-CMD ["sh", "-c", "php artisan config:cache && php artisan route:cache && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${PORT}"]
+CMD ["sh", "-c", "php artisan config:cache && php artisan route:cache && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${PORT} --no-reload"]

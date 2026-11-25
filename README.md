@@ -41,6 +41,8 @@ Menabung: `nabung 1 juta` (atau `nabung 1 juta nikah` bila tabungannya lebih dar
 Daftar tabungan (saldo tidak dipotong): baris judul (`Seserahan:` atau `Tabungan Rumah`) diikuti rincian seperti `1. Handuk : Rp 200.000`, `cincin emas : 1,5 Gram`, atau `25 Oktober 2026 : Rp 2.463.000 + 2 Gram Logam Mulia`. Tabungan yang belum ada dibuat tanpa target; rincian terlihat saat tabungannya diketuk. Emas dicatat dalam gram, tidak dijumlahkan ke rupiah.
 
 **Konversi ke emas**: Tabung → buka tabungan → Konversi ke emas → isi rupiah yang dipakai dan gram yang didapat. Rupiah tabungan berkurang, gram bertambah, saldo dompet tetap. Bisa dibatalkan dari rincian.
+
+**Menu Emas** (tombol di Beranda): harga emas per gram, nilai emas di tabungan, dan kalkulator. Harga adalah **spot dunia** dari xaus.com (cadangan: currency-api, harian), gratis tanpa API key, disimpan 5 menit di server. Bukan harga jual Antam/Pegadaian.
 Pengujian lokal API ke database terpisah: jangan pakai `php artisan serve` dengan variabel `DB_*` dari shell (tidak diteruskan); pakai `APP_ENV=nama` + file `.env.nama`.
 
 ## Periode gajian, ekspor, dan data contoh
