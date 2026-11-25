@@ -52,6 +52,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/saving-goals/{id}', [SavingController::class, 'show']);
         Route::delete('/saving-goals/{id}', [SavingController::class, 'destroy']);
         Route::post('/saving-goals/{id}/entries', [SavingController::class, 'addEntry']);
+        Route::post('/saving-goals/{id}/convert', [SavingController::class, 'convert']);
+        Route::delete('/saving-goals/{id}/conversions/{entry}', [SavingController::class, 'undoConversion']);
 
         Route::get('/budgets', [BudgetController::class, 'index']);
         Route::put('/budgets', [BudgetController::class, 'upsert']);

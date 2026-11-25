@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\SavingEntry;
 use App\Models\SavingGoal;
+use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -35,7 +36,12 @@ class SavingController extends Controller
 
     public function destroy(Request $r, int $id)
     {
-        $this->find($r, $id)->delete();
+        $goal = $this->find($r, $id);
+        DB::transaction(function () use ($goal) {
+            // pengeluaran "nabung" ikut dihapus, sama seperti setoran biasa: uangnya kembali ke saldo
+            Transaction::where('household_id', $goal->household_id)->where('saving_goal_id', $goal->id)->get()->each->delete();
+            $goal->delete();
+        });
         return response()->noContent();
     }
 
@@ -48,9 +54,43 @@ class SavingController extends Controller
             $total = (int) SavingEntry::where('goal_id', $g->id)->sum('amount');
             abort_if($total + $d['amount'] < 0, 422, 'Saldo tabungan tidak cukup.');
             $e = SavingEntry::create($d + ['goal_id' => $g->id, 'contributed_by' => $r->user()->id]);
-            $g->update(['achieved_at' => $total + $d['amount'] >= $g->target_amount ? ($g->achieved_at ?? now()) : null]);
+            $g->update(['achieved_at' => $g->target_amount > 0 && $total + $d['amount'] >= $g->target_amount ? ($g->achieved_at ?? now()) : null]);
             return response($e, 201);
         });
+    }
+
+    /** Tukar sebagian tabungan rupiah menjadi emas (mis. Rp2.000.000 → 1 gram). */
+    public function convert(Request $r, int $id)
+    {
+        $d = $r->validate(['amount' => 'required|integer|min:1', 'gold_grams' => 'required|numeric|min:0.01|max:100000']);
+        return DB::transaction(function () use ($r, $id, $d) {
+            $g = SavingGoal::where('household_id', $this->hid($r))->lockForUpdate()->findOrFail($id);
+            $total = (int) SavingEntry::where('goal_id', $g->id)->sum('amount');
+            abort_if($d['amount'] > $total, 422, 'Rupiah di tabungan ini tidak cukup.');
+            $e = SavingEntry::create([
+                'goal_id' => $g->id, 'amount' => -$d['amount'], 'gold_grams' => round($d['gold_grams'], 2),
+                'from_balance' => false, 'contributed_by' => $r->user()->id, 'note' => 'Konversi ke emas',
+            ]);
+            $this->refreshAchieved($g);
+            return response($e, 201);
+        });
+    }
+
+    /** Membatalkan konversi (salah ketik): rupiah kembali, gramnya hilang. */
+    public function undoConversion(Request $r, int $id, int $entry)
+    {
+        $g = $this->find($r, $id);
+        $e = SavingEntry::where('goal_id', $g->id)->findOrFail($entry);
+        abort_unless($e->is_conversion, 422, 'Hanya konversi emas yang bisa dibatalkan di sini.');
+        $e->delete();
+        $this->refreshAchieved($g);
+        return response()->noContent();
+    }
+
+    private function refreshAchieved(SavingGoal $g): void
+    {
+        $total = (int) SavingEntry::where('goal_id', $g->id)->sum('amount');
+        $g->update(['achieved_at' => $g->target_amount > 0 && $total >= $g->target_amount ? ($g->achieved_at ?? now()) : null]);
     }
 
     private function find(Request $r, int $id): SavingGoal
@@ -61,12 +101,12 @@ class SavingController extends Controller
     private function withTotals(SavingGoal $g, $entries): array
     {
         $saved = (int) $entries->sum('amount');
-        $by = $entries->groupBy('contributed_by')->map(fn ($e) => (int) $e->sum('amount'));
+        $by = $entries->reject->is_conversion->groupBy('contributed_by')->map(fn ($e) => (int) $e->sum('amount'));
         $monthly = null;
         if ($g->target_date && $saved < $g->target_amount) {
             $months = max(1, (int) ceil(now()->diffInDays($g->target_date, false) / 30));
             $monthly = (int) ceil(($g->target_amount - $saved) / $months);
         }
-        return $g->toArray() + ['saved' => $saved, 'contributions' => $by, 'monthly_needed' => $monthly];
+        return $g->toArray() + ['saved' => $saved, 'gold_grams' => round((float) $entries->sum('gold_grams'), 2), 'contributions' => $by, 'monthly_needed' => $monthly];
     }
 }

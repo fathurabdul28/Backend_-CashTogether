@@ -40,7 +40,7 @@ class MessageParser
         'Hadiah' => ['hadiah', 'kado', 'angpao'],
     ];
 
-    /** @return array{type:string, amount:int, category:string, note:?string, date:Carbon}|null */
+    /** @return array{type:string, amount:int, category:string, note:?string, date:Carbon, saving:?string}|null */
     public function parse(string $text, ?Carbon $now = null): ?array
     {
         $now ??= $this->now();
@@ -86,7 +86,16 @@ class MessageParser
         return $items;
     }
 
-    /** @return array{type:string, amount:int, category:string, note:?string, date:Carbon} */
+    /** "nabung 1 juta" → 'deposit'; "ambil tabungan 500rb" → 'withdraw'; selain itu null. "tabung gas" bukan tabungan. */
+    private function saving(string $t): ?string
+    {
+        if (preg_match('/(?<![\p{L}])(?:ambil|tarik|cairkan|pakai|pake)\s+(?:(?:uang|duit|dari)\s+)*tabungan(?![\p{L}])/u', $t)) return 'withdraw';
+        if ($this->has($t, 'bunga')) return null;
+        $deposit = '/(?<![\p{L}])(?:nabung|menabung|ditabung|nabungin|tabungin|(?:setor|isi|ke|masuk|buat|untuk)\s+tabungan)(?![\p{L}])|^\s*tabungan(?![\p{L}])/u';
+        return preg_match($deposit, $t) ? 'deposit' : null;
+    }
+
+    /** @return array{type:string, amount:int, category:string, note:?string, date:Carbon, saving:?string} */
     private function item(string $t, int $amount, Carbon $date, ?string $forcedType): array
     {
         // Jenis: kata eksplisit dulu, kalau tidak ada tebak dari kata kunci
@@ -101,6 +110,9 @@ class MessageParser
 
         $category = $this->category($t, $type) ?? 'Lainnya';
 
+        $saving = $this->saving($t);
+        if ($saving === 'deposit') { $type = 'expense'; $category = 'Tabungan'; }
+
         // Catatan: sisa kalimat tanpa kata jenis & kata sambung
         $note = $t;
         foreach (array_merge(['pemasukan', 'pengeluaran', 'masuk', 'keluar'], self::FILLERS) as $w) {
@@ -109,7 +121,7 @@ class MessageParser
         $note = trim(preg_replace('/\s+/u', ' ', $note));
         $note = $note !== '' ? mb_substr($note, 0, 200) : null;
 
-        return ['type' => $type, 'amount' => $amount, 'category' => $category, 'note' => $note, 'date' => $date];
+        return ['type' => $type, 'amount' => $amount, 'category' => $category, 'note' => $note, 'date' => $date, 'saving' => $saving];
     }
 
     /**

@@ -133,22 +133,24 @@ class ExportController extends Controller
 
         // ---- Sheet 3: Tabungan (bersama) ----
         $writer->addNewSheetAndMakeItCurrent()->setName('Tabungan');
-        foreach ([1 => 24, 2 => 16, 3 => 18, 4 => 18, 5 => 11, 6 => 18, 7 => 18] as $col => $w) $writer->getCurrentSheet()->setColumnWidth($w, $col);
+        foreach ([1 => 24, 2 => 16, 3 => 18, 4 => 18, 5 => 11, 6 => 18, 7 => 18, 8 => 14] as $col => $w) $writer->getCurrentSheet()->setColumnWidth($w, $col);
         $partner = $this->partner($hid, $user->id);
-        $writer->addRow($headerRow(['Target', 'Tanggal target', 'Nominal target (Rp)', 'Terkumpul (Rp)', 'Progres', 'Setoran kamu (Rp)', 'Setoran '.($partner->name ?? 'pasangan').' (Rp)']));
+        $writer->addRow($headerRow(['Target', 'Tanggal target', 'Nominal target (Rp)', 'Terkumpul (Rp)', 'Progres', 'Setoran kamu (Rp)', 'Setoran '.($partner->name ?? 'pasangan').' (Rp)', 'Emas (gram)']));
         $goals = SavingGoal::where('household_id', $hid)->get();
         $entries = SavingEntry::whereIn('goal_id', $goals->pluck('id'))->get()->groupBy('goal_id');
         foreach ($goals as $g) {
             $e = $entries->get($g->id, collect());
             $saved = (int) $e->sum('amount');
+            $own = $e->reject->is_conversion;
             $writer->addRow($row([
                 $g->name,
                 $g->target_date ? Cell::fromValue(new DateTimeImmutable($g->target_date->format('Y-m-d')), $date) : '',
                 Cell::fromValue((int) $g->target_amount, $num),
                 Cell::fromValue($saved, $num),
                 Cell::fromValue($g->target_amount ? $saved / $g->target_amount : 0, $pct),
-                Cell::fromValue((int) $e->where('contributed_by', $user->id)->sum('amount'), $num),
-                Cell::fromValue($partner ? (int) $e->where('contributed_by', $partner->id)->sum('amount') : 0, $num),
+                Cell::fromValue((int) $own->where('contributed_by', $user->id)->sum('amount'), $num),
+                Cell::fromValue($partner ? (int) $own->where('contributed_by', $partner->id)->sum('amount') : 0, $num),
+                (float) $e->sum('gold_grams') ?: '',
             ]));
         }
         $writer->close();

@@ -76,7 +76,7 @@ class ReportController extends Controller
             $was = $prev->where('category_id', $food->id)->sum('amount');
             if ($was > 0 && $now > $was) $insights[] = 'Pengeluaran makan naik '.round(($now - $was) / $was * 100).'% dari bulan lalu.';
         }
-        $saved = (int) $this->myEntries($r)->whereBetween('occurred_at', [$from, $to])->where('amount', '>', 0)->sum('amount');
+        $saved = (int) $this->myEntries($r)->whereBetween('occurred_at', [$from, $to])->where('amount', '>', 0)->where('from_balance', true)->sum('amount');
         if ($income > 0 && $saved > 0) $insights[] = 'Kamu menabung '.round($saved / $income * 100).'% pemasukan bulan ini.';
 
         return [
@@ -94,7 +94,7 @@ class ReportController extends Controller
         $last = (clone $entries)->orderByDesc('id')->first(['id', 'contributed_by']);
         return [
             'transactions' => $tx,
-            'savings' => (clone $entries)->max('updated_at').'|'.SavingGoal::where('household_id', $h)->count(),
+            'savings' => (clone $entries)->max('updated_at').'|'.(clone $entries)->count().'|'.SavingGoal::where('household_id', $h)->count(),
             'last_saving_by' => $last?->contributed_by,
             'budgets' => Budget::where('household_id', $h)->where('user_id', $r->user()->id)->max('updated_at'),
         ];
