@@ -35,6 +35,12 @@ Catat lewat chat: kirim "pengeluaran 34 ribu untuk makan" ke nomor bot, lalu bot
 
 Perintah: `SALDO`, `REKAP`, `BATAL` (hapus catatan WhatsApp terakhir; bila pesannya berisi beberapa barang, semuanya dibatalkan), `BANTUAN`.
 Beberapa barang sekaligus: `makan 25rb dan kopi 80rb`, `gaji 10 juta, bonus 2 juta` (maksimal 10 per pesan). Tambahkan `pakai bca` untuk memilih akun, dan `kemarin` / `3 hari lalu` untuk tanggal.
+
+Menabung: `nabung 1 juta` (atau `nabung 1 juta nikah` bila tabungannya lebih dari satu) tercatat sebagai pengeluaran kategori Tabungan **dan** setoran ke tabungan itu; saldo hanya terpotong sekali. BATAL atau menghapus transaksinya juga menarik setorannya.
+
+Daftar tabungan (saldo tidak dipotong): baris judul (`Seserahan:` atau `Tabungan Rumah`) diikuti rincian seperti `1. Handuk : Rp 200.000`, `cincin emas : 1,5 Gram`, atau `25 Oktober 2026 : Rp 2.463.000 + 2 Gram Logam Mulia`. Tabungan yang belum ada dibuat tanpa target; rincian terlihat saat tabungannya diketuk. Emas dicatat dalam gram, tidak dijumlahkan ke rupiah.
+
+**Konversi ke emas**: Tabung → buka tabungan → Konversi ke emas → isi rupiah yang dipakai dan gram yang didapat. Rupiah tabungan berkurang, gram bertambah, saldo dompet tetap. Bisa dibatalkan dari rincian.
 Pengujian lokal API ke database terpisah: jangan pakai `php artisan serve` dengan variabel `DB_*` dari shell (tidak diteruskan); pakai `APP_ENV=nama` + file `.env.nama`.
 
 ## Periode gajian, ekspor, dan data contoh
